@@ -1,20 +1,18 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
-from dataclasses import dataclass
 import re
-from typing import Dict, List, Tuple
+import sys
+from bdsl_types import (
+    VarData,
+    Context,
+    # Conditions,
+    numOrNone,
+    iota
+)
 
-
-iota_counter = 0  # pylint: disable=invalid-name
-
-
-def iota(reset=False):
-    global iota_counter  # pylint: disable=global-statement
-    if reset:
-        iota_counter = 0
-    result = iota_counter
-    iota_counter += 1
-    return result
+VERBOSE = False
+VERBOSE = True
 
 
 TOKEN_COMMENT = iota(True)
@@ -22,8 +20,12 @@ TOKEN_ASSIGN = iota()
 TOKEN_QUEST = iota()
 TOKEN_VAR = iota()
 TOKEN_OP = iota()
+TOKEN_COND = iota()
 TOKEN_RANGE = iota()
 TOKEN_SIZE = iota()
+TOKEN_IF = iota()
+TOKEN_ELSE = iota()
+TOKEN_END = iota()
 # Other ops ...
 TOKEN_MAX = iota()
 
@@ -33,32 +35,17 @@ token_names = [
     'QUEST',
     'VAR',
     'OP',
+    'COND',
     'RANGE',
-    'SIZE'
+    'SIZE',
+    'IF',
+    'ELSE',
+    'END',
 ]
 
-code = [
-    "x          0..10",
-    "y          0..15",
-    "arr  (10)  2..",
-    "arr!        ..10",
-    "z = x + y",
-    ";; Print vars",
-    "x?",
-    "y?",
-    "arr?",
-    "z?",
-    "?",
-    ";; Finalyze z variable",
-    "z.",
-    "?",
-    # Future
-    # "z > 10:",
-    # "| ; do something",
-    # "else:",
-    # "| ; do something else",
-    # "end",
-]
+assert len(token_names) == TOKEN_MAX, \
+    f'Token names {token_names} do not match token count {TOKEN_MAX}'
+
 
 MODS = '!?.'
 MODS_RE = MODS.replace('.', r'\.')
@@ -66,60 +53,27 @@ MODS_RE = MODS.replace('.', r'\.')
 OPS = '+-*/'
 OPS_RE = OPS.replace('-', r'\-').replace('/', r'\/')
 
-# CONDS = '><'
-# CONDS_RE =
-# COND_RE = r'^([])$'
 
-SIZE_RE = r'^\((?P<size>[0-9,]*)\)$'
+CONDS_RE = '>|<|==|!=|>=|<='
 
-VAR_RE = rf'^([_A-z0-9]+)([{MODS_RE}]?)$'
-OP_RE = rf'^([{OPS_RE}])$'
-RANGE_RE = r'^(?P<min>[0-9]*)\.\.(?P<max>[0-9]*)$'
 
 COMMENT_RE = r'^[;]+(?P<comment>[.]*)$'
 
-
-IntOrFloat = int | float
-BoundsType = Tuple[IntOrFloat | None, IntOrFloat | None]
-
-
-@dataclass
-class VarData:
-    """Holds data for a variable"""
-    name: str
-    bounds: BoundsType = (None, None)
-    size: int = 1
-    expr: List[str] | None = None
-
-    def __init__(self,
-                 name: str,
-                 arg2: BoundsType | List[str],
-                 size: str | None):
-        self.name = name
-        if size is not None:
-            self.size = int(size)
-
-        if isinstance(arg2, list):
-            assert all(isinstance(arg2i, str) for arg2i in arg2), \
-                f'Expression {arg2} must be a list of strings'
-            self.expr = arg2
-        else:
-            self.bounds = arg2
-
-    def __str__(self):
-
-        if self.expr is None:
-            b_min = self.bounds[0] if self.bounds[0] is not None else ' '
-            b_max = self.bounds[1] if self.bounds[1] is not None else ' '
-            return f'{self.name} ({self.size}) [{b_min}..{b_max}]'
-
-        return f'{self.name} ({self.size}) "{' '.join(self.expr)}"'
+VAR_RE = rf'^([_A-z0-9]+)([{MODS_RE}]?)$'
+OP_RE = rf'^([{OPS_RE}])$'
+RANGE_RE = r'^(?P<min>-?[0-9]*)\.\.(?P<max>-?[0-9]*)$'
+COND_RE = rf'[ ]?({CONDS_RE})[ ]?$'
+CMD_RE = r'^(\?\?|>>|--)[ ]?$'
+SIZE_RE = r'^\((?P<size>[0-9,]*)\)$'
 
 
-vardict: Dict[str, VarData] = {}
+vardict: Context = {}
+context_stack: list[Context] = []
 
 
 def get_token_type(tok: str):
+    if VERBOSE:
+        print(f'get_token_type: "{tok}"')
 
     comm_match = re.match(COMMENT_RE, tok)
     if comm_match:
@@ -134,7 +88,6 @@ def get_token_type(tok: str):
 
     var_match = re.match(VAR_RE, tok)
     if var_match:
-        # print(var_match.groups())
         return (TOKEN_VAR, var_match.groups()[0], var_match.groups()[1])
 
     op_match = re.match(OP_RE, tok)
@@ -154,27 +107,29 @@ def get_token_type(tok: str):
     if size_match:
         groups = size_match.groupdict()
         size = groups['size']
-        # print(groups)
         return (TOKEN_SIZE, size)
+
+    cond_match = re.match(COND_RE, tok)
+    if cond_match:
+        return (TOKEN_COND, tok)
+
+    cmd_match = re.match(CMD_RE, tok)
+    if cmd_match:
+        tok_match = cmd_match.groups()[0]
+        if tok_match == '??':
+            return (TOKEN_IF, tok)
+        if tok_match == '>>':
+            return (TOKEN_ELSE, tok)
+        if tok_match == '--':
+            return (TOKEN_END, tok)
 
     assert False, f'Token "{tok}" not matched'
 
 
-def numOrNone(s: str) -> IntOrFloat | None:
-
-    if s == '':
-        return None
-
-    if '.' in s:
-        return float(s)
-
-    return int(s)
-
-
 def collapse_expr(
-    opvars: list[Tuple[IntOrFloat | None, IntOrFloat | None]],
+    opvars: list,
     opops: list[str]
-) -> Tuple[IntOrFloat | None, IntOrFloat | None]:
+):
     ops = {
         '+': lambda x, y: x + y,
         '-': lambda x, y: x - y,
@@ -213,11 +168,12 @@ def collapse_expr(
     return opvars[0]
 
 
-def calc_bounds(v: str) -> Tuple[IntOrFloat | None, IntOrFloat | None]:
+def calc_bounds(v: str):
     assert v in vardict, f'Variable {v} not defined'
     vardata = vardict[v]
-    if vardata.bounds != (None, None):
-        return vardata.bounds
+    if vardata.bounds.get_bounds()[0] != (None, None):
+        # TODO: bounds needs to be a set.
+        return vardata.bounds.get_bounds()[0]
     expr = vardata.expr
     assert expr is not None, f'Variable {v} has no expression'
     if len(expr) == 2:
@@ -252,17 +208,23 @@ def calc_bounds(v: str) -> Tuple[IntOrFloat | None, IntOrFloat | None]:
     return result
 
 
-def print_vars(vardict: Dict[str, VarData]):
+def print_vars(context: Context):
     print('vars:')
-    for v in vardict:
-        print(f"\t{vardict[v]}")
+    for v in context:
+        print(f"\t{context[v]}")
         # print(vardict)
 
 
-VERBOSE = False
-VERBOSE = True
-
 if __name__ == "__main__":
+
+    if len(sys.argv) < 2:
+        print("Usage: python test.py <filename>")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    code = []
+    with open(filename, 'r', encoding='utf-8') as f:
+        code = f.readlines()
     for line in code:
         tokens = line.split()
         # print('tokens:',tokens)
@@ -301,6 +263,26 @@ if __name__ == "__main__":
                 break
             elif token_type == TOKEN_QUEST:
                 print_vars(vardict)
+                break
+            # elif token_type == TOKEN_COND:
+                # if VERBOSE:
+                #     print('COND: ', tokens[ti+1:])
+                # break
+            elif token_type == TOKEN_IF:
+                if VERBOSE:
+                    print('IF: ', tokens[ti+1:])
+                # Filter context
+                break
+            elif token_type == TOKEN_ELSE:
+                if VERBOSE:
+                    print('ELSE: ', tokens[ti+1:])
+                # Select complementary context
+                break
+            elif token_type == TOKEN_END:
+                if VERBOSE:
+                    print('END.')
+                # Merge contexts
+                # vardict = merge_contexts(vardict, context_stack.pop())
                 break
             elif token_type == TOKEN_SIZE:
                 size = rest[0]
