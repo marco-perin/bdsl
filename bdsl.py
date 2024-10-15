@@ -19,7 +19,6 @@ VERBOSE = False
 context_stack: list[Context] = []
 other_context_stack: list[Context] = []
 split_cond_stack: list[Conditions] = []
-# curr_context: Context = {}
 
 
 def collapse_expr(
@@ -31,7 +30,7 @@ def collapse_expr(
         '-': lambda x, y: x.value - y.value,
         '*': lambda x, y: x.value * y.value,
     }
-    while (len(opops) > 0):
+    while len(opops) > 0:
         op = opops.pop(0)
         assert op in lexer.OPS, f'Operator {op} not implemented'
 
@@ -71,6 +70,7 @@ def collapse_expr(
 
 
 def calc_bounds(v_name: str, context: Context) -> Bounds:
+    """Calculate bounds for variable v_name from given context"""
     assert v_name in context, f'Variable {v_name} not defined'
     vardata = context[v_name]
     if vardata.bounds is not None:
@@ -121,7 +121,7 @@ def calc_bounds(v_name: str, context: Context) -> Bounds:
         assert False, \
             f'Token {e} in expression {vardata} not implemented'
 
-    assert (len(opvars) == len(opops) + 1), \
+    assert len(opvars) == len(opops) + 1, \
         f'Expression {vardata} malformed'
 
     varlist = []
@@ -130,7 +130,7 @@ def calc_bounds(v_name: str, context: Context) -> Bounds:
             varlist.append((op, op))
         else:
             varlist.extend(calc_bounds(op, context).get_bounds())
-    # print('varlist:', varlist)
+
     result = collapse_expr(varlist, opops)
     return Bounds.from_interval(result)
 
