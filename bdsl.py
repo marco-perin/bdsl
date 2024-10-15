@@ -377,7 +377,7 @@ def exec_code(code: list[str]):
                 for v_name in curr_context:
                     if curr_context[v_name].bounds is None:
                         curr_context[v_name].bounds = calc_bounds(
-                            v_name, comp_context)
+                            v_name, curr_context)
                         curr_context[v_name].expr = None
                 for v_name in comp_context:
                     if comp_context[v_name].bounds is None:
