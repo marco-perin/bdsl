@@ -1,0 +1,61 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "BDSL",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"name": "variable.name",
+			"match": "[a-zA-Z_]{1}[a-zA-Z0-9_]*"
+		},
+		{
+			"name": "variable.parameter",
+			"match": "\\b-?[0-9]*\\.\\.-?[0-9]*\\b"
+		},
+		{
+			"name": "variable.other",
+			"match": "[!?]\\b"
+		},
+		{
+			"name": "constant.numeric.bdsl",
+			"match": "\\b-?[0-9]+"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.bdsl",
+					"match": "(\\?\\?|>>|--)[ ]?+"
+				}
+			]
+		},
+		"strings": {
+			"name": "string.quoted.double.bdsl",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.bdsl",
+					"match": "\\\\."
+				}
+			]
+		},
+		"comments": {
+			"patterns": [
+				{
+					"name": "comment.line",
+					"match": ";;.*$"
+				}
+			]
+		}
+	},
+	"scopeName": "source.bdsl"
+}

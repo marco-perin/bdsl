@@ -1,0 +1,35 @@
+{
+  "name": "bdsl-lang",
+  "displayName": "BDSL Lang",
+  "description": "Syntax highlighting for BDSL lang",
+  "author": "marco-perin",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "bdsl",
+        "aliases": [
+          "BDSL",
+          "bdsl"
+        ],
+        "extensions": [
+          ".bdsl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "bdsl",
+        "scopeName": "source.bdsl",
+        "path": "./syntaxes/bdsl.tmLanguage.json"
+      }
+    ]
+  }
+}
