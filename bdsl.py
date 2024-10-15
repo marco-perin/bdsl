@@ -421,15 +421,23 @@ def exec_code(code: list[str]):
         curr_context[varname] = VarData.auto(varname, rest_line, size)
 
 
+def print_usage():
+    print("Usage: python test.py <arg>")
+    print()
+    print("  <arg> can be: ")
+    print()
+    print("    filename    to be executed.")
+    print("    file number in the examples to be executed.")
+    print()
+
+
 if __name__ == "__main__":
     import glob
     import re
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python test.py <filename>")
-        print("")
-        print("  <filename> is the name of the file to be executed.")
+        print_usage()
         sys.exit(1)
 
     filename = sys.argv[1]
