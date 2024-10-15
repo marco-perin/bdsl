@@ -357,15 +357,20 @@ def exec_code(code: list[str]):
                 if VERBOSE:
                     print('ELSE: ', tokens[ti+1:])
                 # Select complementary context
-                break
+
+                curr_context = other_context_stack[-1]
+                # for v_name in cond:
+                #     assert v_name in curr_context, f'Variable {
+                #         v_name} not defined'
+                #     curr_context[v_name].bounds = calc_bounds(
+                #         v_name, curr_context)
+                #     curr_context[v_name].expr = None
+                # break
             elif token_type == lexer.TOKEN_END:
                 if VERBOSE:
                     print('END.')
                 # Merge contexts
-
-                # Not needed?
-                curr_context_2 = context_stack.pop()
-                assert curr_context == curr_context_2, 'Contexts do not match'
+                curr_context = context_stack.pop()
                 comp_context = other_context_stack.pop()
                 split_cond = split_cond_stack.pop()
 
@@ -374,10 +379,14 @@ def exec_code(code: list[str]):
                         curr_context[v_name].bounds = calc_bounds(
                             v_name, comp_context)
                         curr_context[v_name].expr = None
+                for v_name in comp_context:
+                    if comp_context[v_name].bounds is None:
+                        comp_context[v_name].bounds = calc_bounds(
+                            v_name, comp_context)
+                        comp_context[v_name].expr = None
                 curr_context = merge_contexts(
                     curr_context, comp_context, split_cond
                 )
-                # vardict = merge_contexts(vardict, context_stack.pop())
                 break
             elif token_type == lexer.TOKEN_SIZE:
                 size = rest[0]
