@@ -6,18 +6,18 @@ y 5..20
 z = x
 
 ;; Print bounds
-z?
+z? ;; -> BOUNDS(z): 0..10
 
 ?? z >= 5
-    ;; z 5..10
-    z?
+    z? ;; -> BOUNDS(z): 5..10
     z! = x - y
-    z?
->> ;;Else
-    z?
+    z? ;; -> BOUNDS(z): -10..-5
+>> ;; Else
+    z? ;; -> BOUNDS(z): 0..5
     z! = x + y
-    z?
+    z? ;; -> BOUNDS(z): 5..30
 --
 
-z?
+;; Print final bounds
+z? ;; -> BOUNDS(z): (-10..-5),(5..30)
 

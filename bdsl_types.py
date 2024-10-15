@@ -74,9 +74,9 @@ def merge_contexts(
             assert comp_bounds is not None, \
                 f'Variable {c_var_name} bounds are None in compl. bounds'
 
-            print('curr_var:', curr_var)
-            print('curr_bounds:', curr_var.bounds)
-            print('comp_bounds:', comp_bounds)
+            # print('curr_var:', curr_var)
+            # print('curr_bounds:', curr_var.bounds)
+            # print('comp_bounds:', comp_bounds)
 
             for i in comp_bounds.get_bounds():
                 # print('comp_bounds i:', i)
