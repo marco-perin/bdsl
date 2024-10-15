@@ -2,8 +2,10 @@
 x 0..10
 y 5..20
 
+;; Assign
 z = x
 
+;; Print bounds
 z?
 
 ?? z >= 5
@@ -11,8 +13,7 @@ z?
     z?
     z! = x - y
     z?
-    ;; z.
->>
+>> ;;Else
     z?
     z! = x + y
     z?
