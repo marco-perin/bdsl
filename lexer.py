@@ -121,8 +121,6 @@ def get_token_type(tok: str):
 
 def match_token(tok: str, tok_re: str):
 
-    # assert tok_type < TOKEN_MAX, f'Token type {tok_type} not defined'
-
     re_match = re.match(tok_re, tok)
 
     if re_match is None:
