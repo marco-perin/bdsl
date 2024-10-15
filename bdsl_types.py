@@ -1,7 +1,7 @@
 
-from typing import Callable, Dict
+from typing import Dict
 
-from bounds import Bounds, Interval, IntOrFloat
+from bounds import Bounds, IntOrFloat
 from vardata import VarData
 
 
@@ -18,36 +18,7 @@ def numOrNone(s: str) -> IntOrFloat | None:
 
 type Context = Dict[str, VarData]
 # TODO: Use Bounds instead of Interval for conditions?.
-type Conditions = Dict[str, Interval]
-
-
-def f_intersect(
-        f: Callable[[IntOrFloat, IntOrFloat], IntOrFloat],
-        x: IntOrFloat | None,
-        y: IntOrFloat | None
-) -> IntOrFloat | None:
-    """Returns None only if both x and y are None"""
-    if x is None or y is None:
-        if x is None:
-            return y
-        return x
-    return f(x, y)
-
-
-def interval_intersect(b1: Interval, b2: Interval) -> Interval:
-    b_min = f_intersect(min,  b1[0], b2[0])
-    b_max = f_intersect(max,  b1[1], b2[1])
-    return (b_min, b_max)
-
-
-def invert_interval(b: Interval) -> list[Interval]:
-    if b[0] is None:
-        return [(b[1], None)]
-
-    if b[1] is None:
-        return [(None, b[0])]
-
-    return [(None, b[0]), (b[1], None)]
+type Conditions = Dict[str, Bounds]
 
 
 def split_context(
@@ -66,19 +37,22 @@ def split_context(
             # both 0..10
             assert curr_var.bounds is not None, 'Variable bounds are None'
 
-            curr_var.bounds.intersect_interval(c_interval)
+            curr_var.bounds.intersect_bounds(c_interval)
             # curr_var \in c_interval ( 5..10 )
             assert curr_var_compl.bounds is not None, 'Variable bounds are None'
 
             # print('c_interval:', c_interval)
             # print('invert_interval(c_interval):', invert_interval(c_interval))
             # print('curr_var_compl bounds', curr_var_compl.bounds)
-            curr_var_compl.bounds.intersect_bounds(
-                Bounds.from_list(invert_interval(c_interval)))
+            curr_var_compl.bounds.intersect_bounds(c_interval.copy().invert())
             # print('curr_var_compl bounds', curr_var_compl.bounds)
 
             filter_context[c_var_name] = curr_var
             complement_context[c_var_name] = curr_var_compl
+    for c_var_name in context:
+        if c_var_name not in filter_context:
+            filter_context[c_var_name] = context[c_var_name]
+            complement_context[c_var_name] = context[c_var_name]
 
     return filter_context, complement_context
 
@@ -93,6 +67,8 @@ def merge_contexts(
     for c_var_name, _ in split_cond.items():
         if c_var_name in curr_context:
             curr_var = res[c_var_name]
+
+            # print('curr_context:', curr_context)
             assert curr_var.bounds is not None, \
                 f'Variable {c_var_name} bounds are None'
 

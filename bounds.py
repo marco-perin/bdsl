@@ -1,5 +1,5 @@
 
-from typing import Tuple, Self
+from typing import Callable, Tuple, Self
 
 # TODO: move this into types
 type IntOrFloat = int | float
@@ -11,6 +11,11 @@ class IntervalPoint:
         self.value = value
         self.is_included = is_included
 
+    def __eq__(self, other: Self | IntOrFloat) -> bool:
+        if isinstance(other, IntervalPoint):
+            return self.value == other.value and self.is_included and other.is_included
+        return self.value == other
+
     def __gt__(self, other: Self | IntOrFloat) -> bool:
         if isinstance(other, IntervalPoint):
             if self.is_included and other.is_included:
@@ -19,10 +24,6 @@ class IntervalPoint:
         if self.is_included:
             return self.value >= other
         return self.value > other
-        # v = other.value if isinstance(other, IntervalPoint) else other
-        # if self.is_included:
-        #     return self.value >= v
-        # return self.value > v
 
     def __lt__(self, other: Self | IntOrFloat) -> bool:
         if isinstance(other, IntervalPoint):
@@ -32,10 +33,6 @@ class IntervalPoint:
         if self.is_included:
             return self.value <= other
         return self.value < other
-        # v = other.value if isinstance(other, IntervalPoint) else other
-        # if self.is_included:
-        #     return self.value <= v
-        # return self.value < v
 
     def __ge__(self, other: Self | IntOrFloat) -> bool:
         assert False, 'Use > instead of >=, it takes into account the inclusion'
@@ -48,6 +45,41 @@ class IntervalPoint:
 
 
 type Interval = tuple[IntervalPoint | None, IntervalPoint | None]
+
+
+def tup2interval(tup: tuple[IntOrFloat | None, IntOrFloat | None], included: tuple[bool, bool] = (True, True)) -> Interval:
+    v1 = None if tup[0] is None else IntervalPoint(tup[0], included[0])
+    v2 = None if tup[1] is None else IntervalPoint(tup[1], included[1])
+    return (v1, v2)
+
+
+def f_intersect(
+        f: Callable[[IntervalPoint, IntervalPoint], IntervalPoint],
+        x: IntervalPoint | None,
+        y: IntervalPoint | None
+) -> IntervalPoint | None:
+    """Returns None only if both x and y are None"""
+    if x is None or y is None:
+        if x is None:
+            return y
+        return x
+    return f(x, y)
+
+
+def interval_intersect(b1: Interval, b2: Interval) -> Interval:
+    b_min = f_intersect(min,  b1[0], b2[0])
+    b_max = f_intersect(max,  b1[1], b2[1])
+    return (b_min, b_max)
+
+
+def invert_interval(b: Interval) -> list[Interval]:
+    if b[0] is None:
+        return [(b[1], None)]
+
+    if b[1] is None:
+        return [(None, b[0])]
+
+    return [(None, b[0]), (b[1], None)]
 
 
 def nInInterval(n: IntervalPoint, interval: Interval) -> bool:
@@ -84,6 +116,20 @@ class Bounds:
     @classmethod
     def from_list(cls, interval: list[Interval]):
         return cls(tuple(interval))
+
+    @classmethod
+    def from_num_tuples(
+            cls,
+            interval: tuple[tuple[IntOrFloat | None, IntOrFloat | None], ...],
+            included: bool = True
+    ):
+        return cls(tuple(
+            (
+                None if l_b is None else IntervalPoint(l_b, included),
+                None if u_b is None else IntervalPoint(u_b, included),
+            )
+            for l_b, u_b in interval
+        ))
 
     @classmethod
     def from_interval(cls, interval: Interval):
@@ -288,8 +334,8 @@ class Bounds:
 
     def union_bounds(self, bounds: 'Bounds'):
 
-        print('union.self: ', self)
-        print('union.other:', bounds)
+        # print('union.self: ', self)
+        # print('union.other:', bounds)
         # for interval in bounds.get_bounds():
         #     # print('U  self    :', self)
         #     # print('U  interval:', interval)
@@ -320,10 +366,10 @@ class Bounds:
 
             b_1 = bds_1[i_1]
             b_2 = bds_2[i_2]
-            print(f'new_bds {i_1}-{i_2}:', new_bds)
-            print(f'-- {i_1} {i_2}')
-            print("bds_1: ", '-' if tracing_1 else ' ', bds_1[i_1])
-            print("bds_1: ", '-' if tracing_2 else ' ', bds_2[i_2])
+            # print(f'new_bds {i_1}-{i_2}:', new_bds)
+            # print(f'-- {i_1} {i_2}')
+            # print("bds_1: ", '-' if tracing_1 else ' ', bds_1[i_1])
+            # print("bds_1: ", '-' if tracing_2 else ' ', bds_2[i_2])
 
             if b_1 is None or b_2 is None:
                 new_bds.append(None)
@@ -337,8 +383,6 @@ class Bounds:
                     # Add point if not between two intervals
                     new_bds.append(b_1)
                 tracing_1 = not tracing_1
-
-            # elif b_2 < b_1:
             else:
                 i_2 += 1
                 if (not tracing_1):
@@ -346,15 +390,21 @@ class Bounds:
                     new_bds.append(b_2)
                 tracing_2 = not tracing_2
 
-            print('new_bds:', new_bds)
+            # print('new_bds:', new_bds)
 
-        if new_bds[-1] is not None:
+        if len(new_bds) == 1 or new_bds[-1] is not None:
             if i_1 < len(bds_1):
                 new_bds.extend(bds_1[i_1:])
             elif i_2 < len(bds_2):
                 new_bds.extend(bds_2[i_2:])
 
-        print('new_bds:', new_bds)
+        # Sanitize - remove overlapping bounds
+        for i in range(len(new_bds)-2, 0, -1):
+            if new_bds[i] == new_bds[i+1]:
+                new_bds.pop(i+1)
+                new_bds.pop(i)
+
+        # print('new_bds fin:', new_bds)
         self.__list = new_bds
         return self
 
@@ -392,10 +442,10 @@ class Bounds:
 
             b_1 = bds_1[i_1]
             b_2 = bds_2[i_2]
-            print(f'new_bds {i_1}-{i_2}:', new_bds)
-            print(f'-- {i_1} {i_2}')
-            print("bds_1: ", '-' if tracing_1 else ' ', b_1)
-            print("bds_2: ", '-' if tracing_2 else ' ', b_2)
+            # print(f'new_bds {i_1}-{i_2}:', new_bds)
+            # print(f'-- {i_1} {i_2}')
+            # print("bds_1: ", '-' if tracing_1 else ' ', b_1)
+            # print("bds_2: ", '-' if tracing_2 else ' ', b_2)
 
             if b_1 is None and b_2 is None:
                 new_bds.append(None)
@@ -403,11 +453,6 @@ class Bounds:
             # assert b_1 is not None and b_2 is not None, 'Unreachable'
             if b_1 is None or b_2 is None:
                 break
-                # if b_1 is None:
-                #     new_bds.append(b_2)
-                # else:
-                #     new_bds.append(b_1)
-                # break
             if b_1 < b_2:
                 # print('b_1 < b_2')
                 i_1 += 1

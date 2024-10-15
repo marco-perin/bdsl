@@ -13,7 +13,7 @@ from bdsl_types import (
 )
 
 VERBOSE = False
-VERBOSE = True
+# VERBOSE = True
 
 
 context_stack: list[Context] = []
@@ -23,13 +23,13 @@ split_cond_stack: list[Conditions] = []
 
 
 def collapse_expr(
-    opvars: list,
+    opvars: list[Interval],
     opops: list[str]
 ):
     ops = {
-        '+': lambda x, y: x + y,
-        '-': lambda x, y: x - y,
-        '*': lambda x, y: x * y,
+        '+': lambda x, y: x.value + y.value,
+        '-': lambda x, y: x.value - y.value,
+        '*': lambda x, y: x.value * y.value,
     }
     while (len(opops) > 0):
         op = opops.pop(0)
@@ -42,23 +42,25 @@ def collapse_expr(
             if r1[0] is None or r2[1] is None:
                 r_min = None
             else:
-                r_min = r1[0] / r2[1]
+                r_min = r1[0].value / r2[1].value
             if r1[1] is None or r2[0] is None:
                 r_max = None
             else:
-                r_max = r1[1] / r2[0]
-
-            return (r_min, r_max)
-
-        op = ops[op]
-        if r1[0] is None or r2[0] is None:
-            r_min = None
+                r_max = r1[1].value / r2[0].value
         else:
-            r_min = op(r1[0], r2[0])
-        if r1[1] is None or r2[1] is None:
-            r_max = None
-        else:
-            r_max = op(r1[1], r2[1])
+            op = ops[op]
+            if r1[0] is None or r2[0] is None:
+                r_min = None
+            else:
+                r_min = op(r1[0], r2[0])
+            if r1[1] is None or r2[1] is None:
+                r_max = None
+            else:
+                r_max = op(r1[1], r2[1])
+            if r_min is not None and r_max is not None:
+                if r_max < r_min:
+                    r_min, r_max = r_max, r_min
+                # r_min, r_max = min(r_min, r_max), max(r_min, r_max)
 
         if r_min is not None:
             r_min = IntervalPoint(r_min)
@@ -68,25 +70,24 @@ def collapse_expr(
     return opvars[0]
 
 
-def calc_bounds(v_name: str, context: Context) -> Interval:
+def calc_bounds(v_name: str, context: Context) -> Bounds:
     assert v_name in context, f'Variable {v_name} not defined'
     vardata = context[v_name]
     if vardata.bounds is not None:
         if vardata.bounds.get_bounds()[0] != (None, None):
-            print('TRUE BOUNDS: ', vardata.bounds.get_bounds())
-            # TODO: bounds needs to be a set.
-            return vardata.bounds.get_bounds()[0]
+            # print('TRUE BOUNDS: ', vardata.bounds.get_bounds())
+            return Bounds(vardata.bounds.get_bounds())
     expr = vardata.expr
     assert expr is not None, f'Variable {v_name} has no expression'
     if len(expr) == 2:
         l_v = numOrNone(expr[0])
         u_v = numOrNone(expr[1])
-        return (
+        return Bounds.from_interval((
             IntervalPoint(l_v) if l_v is not None else None,
             IntervalPoint(u_v) if u_v is not None else None
-        )
+        ))
 
-    opvars = []
+    opvars = list[str | IntervalPoint]()
     opops = []
 
     for e in expr:
@@ -105,6 +106,17 @@ def calc_bounds(v_name: str, context: Context) -> Interval:
         if match_op:
             opops.append(e)  # match_op.groups()[0]
             continue
+        match_num, match_groups = lexer.match_token(e, lexer.NUM_RE)
+        if match_num:
+            assert match_groups is not None
+            num_val = numOrNone(match_groups[0])
+            assert num_val is not None, f'Value {match_groups[0]} not a number'
+            opvars.append(IntervalPoint(num_val))
+            # opvars.append(match_groups[0])
+            # for g in match_groups[1:]:
+            #     assert g == '', \
+            #         f'Variable {e} cannot have modifiers in expression'
+            continue
 
         assert False, \
             f'Token {e} in expression {vardata} not implemented'
@@ -112,10 +124,15 @@ def calc_bounds(v_name: str, context: Context) -> Interval:
     assert (len(opvars) == len(opops) + 1), \
         f'Expression {vardata} malformed'
 
-    varlist = list(map(lambda op: calc_bounds(op, context), opvars))
-    print('varlist:', varlist)
+    varlist = []
+    for op in opvars:
+        if isinstance(op, IntervalPoint):
+            varlist.append((op, op))
+        else:
+            varlist.extend(calc_bounds(op, context).get_bounds())
+    # print('varlist:', varlist)
     result = collapse_expr(varlist, opops)
-    return result
+    return Bounds.from_interval(result)
 
 
 def print_vars(context: Context):
@@ -125,7 +142,7 @@ def print_vars(context: Context):
         # print(vardict)
 
 
-def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool) -> Interval:
+def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool) -> Bounds:
     curr_context = context_stack[-1]
     assert not (isinstance(x, str) and isinstance(y, str)), \
         f'Cannot compare vars rn {x} == {y}'
@@ -137,18 +154,18 @@ def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool) -> Interval:
         # print('bds:', curr_context[x].bounds)
         # print('expr:', curr_context[x].expr)
         if bds is None:
-            bds = Bounds.from_interval(calc_bounds(x, curr_context))
+            bds = calc_bounds(x, curr_context)
         # assert bds is not None, f'Variable {x} has no bounds'
-        return bds.copy().intersect_interval((IntervalPoint(y, eq), None)).get_bounds()[0]
+        return bds.copy().intersect_interval((IntervalPoint(y, eq), None))
 
     assert isinstance(y, str) and not isinstance(x, str)
 
     bds = curr_context[y].bounds
     assert bds is not None, f'Variable {y} has no bounds'
-    return bds.copy().intersect_interval((None, IntervalPoint(x, eq))).get_bounds()[0]
+    return bds.copy().intersect_interval((None, IntervalPoint(x, eq)))
 
 
-def eq(x: IntOrFloat | str, y: IntOrFloat | str) -> Interval:
+def eq(x: IntOrFloat | str, y: IntOrFloat | str) -> Bounds:
     curr_context = context_stack[-1]
     assert not (isinstance(x, str) and isinstance(y, str)), \
         f'Operator "==" not implemented for two vars ({x} == {y}) atm'
@@ -165,7 +182,7 @@ def eq(x: IntOrFloat | str, y: IntOrFloat | str) -> Interval:
 
     bds = var.bounds
     assert bds is not None, f'Variable {var.name} has no bounds'
-    return bds.copy().intersect_interval((val, val)).get_bounds()[0]
+    return bds.copy().intersect_interval((val, val))
 
 
 def neq(x: IntOrFloat | str, y: IntOrFloat | str) -> Bounds:
@@ -189,7 +206,7 @@ def neq(x: IntOrFloat | str, y: IntOrFloat | str) -> Bounds:
     # return bds.copy().intersect_interval((val+1, None)).union_interval().get_bounds()
 
 
-def get_cond(vals: list[IntOrFloat | str], cond: str) -> Interval:
+def get_cond(vals: list[IntOrFloat | str], cond: str) -> Bounds:
     assert len(vals) == 2, f'Need 2 values for condition, got {vals}'
 
     if cond == '>':
@@ -281,8 +298,7 @@ def exec_code(code: list[str]):
                 if '?' in mods:
                     assert varname in curr_context, \
                         f'Variable {varname} not defined'
-                    bounds = Bounds.from_interval(
-                        calc_bounds(varname, curr_context))
+                    bounds = calc_bounds(varname, curr_context)
                     print(f'BOUNDS({varname}): {bounds}')
 
             elif token_type == lexer.TOKEN_RANGE:
@@ -328,13 +344,13 @@ def exec_code(code: list[str]):
                 for v_name in cond:
                     assert v_name in curr_context, f'Variable {
                         v_name} not defined'
-                    curr_context[v_name].bounds = Bounds.from_interval(
-                        calc_bounds(v_name, curr_context))
+                    curr_context[v_name].bounds = calc_bounds(
+                        v_name, curr_context)
                     curr_context[v_name].expr = None
                 ctx, compl = split_context(curr_context, cond)
                 other_context_stack.append(compl)
+                context_stack.append(ctx)
                 curr_context = ctx
-                context_stack.append(ctx.copy())
                 split_cond_stack.append(cond)
                 break
             elif token_type == lexer.TOKEN_ELSE:
@@ -348,9 +364,16 @@ def exec_code(code: list[str]):
                 # Merge contexts
 
                 # Not needed?
-                _ = context_stack.pop()
+                curr_context_2 = context_stack.pop()
+                assert curr_context == curr_context_2, 'Contexts do not match'
                 comp_context = other_context_stack.pop()
                 split_cond = split_cond_stack.pop()
+
+                for v_name in curr_context:
+                    if curr_context[v_name].bounds is None:
+                        curr_context[v_name].bounds = calc_bounds(
+                            v_name, comp_context)
+                        curr_context[v_name].expr = None
                 curr_context = merge_contexts(
                     curr_context, comp_context, split_cond
                 )
@@ -412,7 +435,7 @@ if __name__ == "__main__":
                 filename = f
                 break
         assert filename != sys.argv[1], f'File {filenum} not found'
-        print('filename:', filename)
+        print('executing:', filename)
     except ValueError:
         pass
 
