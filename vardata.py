@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 
 from bounds import Bounds, Interval
+from configuration import UNICODE_OUT
 
 
 @dataclass
@@ -48,17 +49,21 @@ class VarData:
 
         if self.expr is None:
             assert self.bounds is not None
-            bs = self.bounds.get_bounds()
-            bs_string = '|'.join(
-                # pylint: disable=consider-using-f-string
-                '{}..{}'.format(
-                    b[0] if b[0] is not None else ' ',
-                    b[1] if b[1] is not None else ' '
-                )
-                for b in bs
-            )
+            bs = self.bounds  # .get_bounds()
+            # bs_string = '|'.join(
+            #     # pylint: disable=consider-using-f-string
+            #     '{}..{}'.format(
+            #         b[0] if b[0] is not None else ' ',
+            #         b[1] if b[1] is not None else ' '
+            #     )
+            #     for b in bs
+            # )
+            bs_string = str(bs)
             # return f'{self.name} ({self.size}) [{b_min}..{b_max}]'
-            return f'{self.name} [{bs_string}]'
+            if UNICODE_OUT:
+                return f'{self.name} ∈ {bs_string}'
+
+            return f'{self.name} : {bs_string}'
 
         # return f'{self.name} ({self.size}) "{' '.join(self.expr)}"'
         return f'{self.name} "{' '.join(self.expr)}"'

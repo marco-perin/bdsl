@@ -1,6 +1,6 @@
 
 from configuration import UNICODE_OUT
-from typing import Callable, Tuple, Self
+from typing import Callable, Literal, Tuple, Self
 
 # TODO: move this into types
 type IntOrFloat = int | float
@@ -55,11 +55,11 @@ class Interval(tuple[IntervalPoint | None, IntervalPoint | None]):
     def __new__(cls, first: IntervalPoint | None, second: IntervalPoint | None) -> Self:
         return super().__new__(cls, (first, second))
 
-    def get_braces(self):
+    def get_braces(self) -> Tuple[Literal['('] | Literal['['], Literal[')'] | Literal[']']]:
         s0, s1 = self
         return (
-            '(' if s0 is None or not s0.is_included else '[',
-            ')' if s1 is None or not s1.is_included else ']'
+            '(' if (s0 is None or (not s0.is_included)) else '[',
+            ')' if (s1 is None or (not s1.is_included)) else ']'
         )
 
     def __repr__(self) -> str:
@@ -351,19 +351,19 @@ class Bounds:
 
         return self.intersect_bounds(Bounds.from_interval(interval))
 
-    def __repr__(self) -> str:
-        lst = [b1 if b1 == b2 else (b1, b2) for (b1, b2) in self.get_bounds()]
+    # def __repr__(self) -> str:
+    #     lst = [b1 if b1 == b2 else (b1, b2) for (b1, b2) in self.get_bounds()]
 
-        if not UNICODE_OUT:
-            return str(lst)
-        return '[' + ' ∪ '.join(map(str, lst)) + ']'
+    #     if not UNICODE_OUT:
+    #         return str(lst)
+    #     return '[' + ' ∪ '.join(map(str, lst)) + '9]'
 
     def __str__(self):
-        lst = [b1 if b1 == b2 else (b1, b2) for (b1, b2) in self.get_bounds()]
-
         if not UNICODE_OUT:
+            lst = map(str, (b for b in self.get_bounds()))
             return str(lst)
-        return '[' + ' ∪ '.join(map(str, lst)) + ']'
+
+        return '' + ' ∪ '.join(map(str, self.get_bounds())) + ''
 
 
 def main():
@@ -380,7 +380,7 @@ def main():
     # i_union = Bounds.from_interval((IntervalPoint(0), IntervalPoint(1.5)))
     # i_union = Bounds.from_interval((IntervalPoint(2.5), None))
     i_union = Bounds((Interval(IntervalPoint(0), IntervalPoint(0.5)),
-                     Interval(IntervalPoint(2.5), None)))
+                      Interval(IntervalPoint(2.5), None)))
     # i_union = (IntervalPoint(0), IntervalPoint(1.5))
     # print('origin:', b, 'U', i_union)
 
