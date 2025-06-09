@@ -1,0 +1,6 @@
+;; Init var
+x 0..10
+y 5..20
+
+;; Assign
+z? ;; Raises exception for variable undefined (VariableNotDefinedError)

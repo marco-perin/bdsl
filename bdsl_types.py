@@ -1,4 +1,6 @@
 
+from dataclasses import dataclass
+from enum import Enum
 from typing import Dict
 
 from bounds import Bounds, IntOrFloat
@@ -16,14 +18,71 @@ def numOrNone(s: str) -> IntOrFloat | None:
     return int(s)
 
 
-type Context = Dict[str, VarData]
+type VarContext = Dict[str, VarData]
 # TODO: Use Bounds instead of Interval for conditions?.
 type Conditions = Dict[str, Bounds]
 
 
+@dataclass
+class ProgramData:
+    """
+    Data class to hold program execution context information
+    """
+    filename: str
+    # args: List[str] = None
+
+    # def __post_init__(self):
+    # if self.args is None:1
+
+    def get_startline(self, lineno, default_digits=3):
+        return f'{self.filename}:{lineno:0{default_digits}}'
+
+
+@dataclass
+class InterpreterContext:
+    """
+    Data class to hold the current interpreter context
+    """
+    @dataclass
+    class LineData:
+        line_txt: str
+        line_num: int
+
+    program_data: ProgramData
+    curr_line: LineData | None
+
+    def set_linedata(self, line: str, lineno: int):
+        self.curr_line = InterpreterContext.LineData(line, lineno)
+
+
+class Colors(Enum):
+    HEADER = '\033[95m'
+    FAIL = '\033[91m'
+    RED = '\033[31m'
+    BRIGHTRED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    WARNING = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[35m'
+    BRIGHTMAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    BRIGHTCYAN = '\033[96m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    FAINT = '\033[2m'
+    UNDERLINE = '\033[4m'
+    BLINK_SLOW = '\033[5m'
+    BLINK_FAST = '\033[6m'
+    REVERSE = '\033[7m'
+
+    def get_text(self, text: str | int | float):
+        return f'{self.value}{text}{Colors.ENDC.value}'
+
+
 def split_context(
-        context: Context, conds: Conditions
-) -> tuple[Context, Context]:
+        context: VarContext, conds: Conditions
+) -> tuple[VarContext, VarContext]:
 
     filter_context = {}
     complement_context = {}
@@ -56,10 +115,10 @@ def split_context(
 
 
 def merge_contexts(
-        curr_context: Context,
-        comp_context: Context,
+        curr_context: VarContext,
+        comp_context: VarContext,
         split_cond: Conditions
-) -> Context:
+) -> VarContext:
     res = curr_context.copy()
 
     for c_var_name, _ in split_cond.items():

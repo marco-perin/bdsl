@@ -1,23 +1,30 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+
+import sys
+from typing import Callable
 from bounds import Bounds, IntOrFloat, Interval, IntervalPoint
+from examples.errors import VariableNotDefinedError
 import lexer
 from bdsl_types import (
+    InterpreterContext,
+    ProgramData,
     VarData,
-    Context,
+    VarContext,
     Conditions,
     merge_contexts,
     numOrNone,
     split_context,
+    Colors as c
 )
 
 VERBOSE = False
 # VERBOSE = True
 
 
-context_stack: list[Context] = []
-other_context_stack: list[Context] = []
+context_stack: list[VarContext] = []
+other_context_stack: list[VarContext] = []
 split_cond_stack: list[Conditions] = []
 
 
@@ -69,7 +76,7 @@ def collapse_expr(
     return opvars[0]
 
 
-def calc_bounds(v_name: str, context: Context) -> Bounds:
+def calc_bounds(v_name: str, context: VarContext) -> Bounds:
     """Calculate bounds for variable v_name from given context"""
     assert v_name in context, f'Variable {v_name} not defined'
     vardata = context[v_name]
@@ -135,7 +142,7 @@ def calc_bounds(v_name: str, context: Context) -> Bounds:
     return Bounds.from_interval(result)
 
 
-def print_vars(context: Context):
+def print_vars(context: VarContext):
     print('vars:')
     for v in context:
         print(f"\t{context[v]}")
@@ -228,7 +235,7 @@ def get_cond(vals: list[IntOrFloat | str], cond: str) -> Bounds:
     assert False, f'Condition {cond} not implemented'
 
 
-def pase_condition(tokens: list[str], context: Context) -> Conditions:
+def pase_condition(tokens: list[str], context: VarContext) -> Conditions:
     assert len(tokens) > 0, 'No tokens to parse'
     assert len(tokens) % 3 == 0, f'Condition {tokens} malformed'
 
@@ -266,14 +273,20 @@ def pase_condition(tokens: list[str], context: Context) -> Conditions:
     return conds
 
 
-def exec_code(code: list[str]):
+def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
 
     if len(context_stack) == 0:
         context_stack.append({})
 
-    curr_context = context_stack[-1]
+    interpreter_context = InterpreterContext(
+        program_data,
+        curr_line=None
+    )
 
-    for line in code:
+    curr_context = context_stack[-1]
+    mods = None
+    for line_num, line in enumerate(code, start=1):
+        interpreter_context.set_linedata(line, line_num)
         tokens = line.split()
         # print('tokens:',tokens)
         varname = None
@@ -296,10 +309,30 @@ def exec_code(code: list[str]):
                 varname = rest[0]
                 mods = rest[1:]
                 if '?' in mods:
-                    assert varname in curr_context, \
-                        f'Variable {varname} not defined'
+                    if varname not in curr_context:
+                        raise VariableNotDefinedError(
+                            varname,
+                            line_num,
+                            interpreter_context=interpreter_context,
+                            colno=line.find(varname)+1
+                        )
+
                     bounds = calc_bounds(varname, curr_context)
-                    print(f'BOUNDS({varname}): {bounds}')
+
+                    header = c.FAINT.get_text(f'{line_num:03}')
+                    if opts.verbose > 0:
+                        endl = c.FAINT.get_text(
+                            f' [{line.strip().removesuffix('\n')}]')
+                        if opts.verbose > 1:
+                            header = f'{program_data.filename}:{line_num:03}'
+                    else:
+                        endl = ''
+                    if UNICODE_OUT:
+                        msg = f'{header} : {c.GREEN.get_text(varname)} ∈ {bounds}{endl}'
+                    else:
+                        msg = f'{header} : BOUNDS({c.GREEN.get_text(varname)}): {bounds}{endl}'
+
+                    print(msg)
 
             elif token_type == lexer.TOKEN_RANGE:
                 assert len(rest) == 2, f'Range {rest} malformed'
@@ -422,36 +455,85 @@ def exec_code(code: list[str]):
 
 
 def print_usage():
-    print("Usage: python test.py <arg>")
+    print("Usage: python test.py [opts] <arg>")
+    print()
+    print("  [opts] can be: ")
+    print()
+    print("    -v | --verbose to enable verbose mode.")
+    print("    -h | --help    to print this help message.")
     print()
     print("  <arg> can be: ")
     print()
-    print("    filename    to be executed.")
-    print("    file number in the examples to be executed.")
+    print("    filename       to be executed.")
+    print("    file_number    in the examples to be executed.")
     print()
 
 
-if __name__ == "__main__":
+class Opts():
+    verbose: int = 0
+
+    def parse_option(self, opt: str):
+        if opt in ['-v', '--verbose']:
+            self.verbose = 1
+            return True
+        if opt in ['-vv', '--vverbose']:
+            self.verbose = 2
+            return True
+
+        return False
+
+    def is_help(self, opt: str):
+        return opt in ['-h', '--help']
+
+    def parse_all_args(self, args, help_fcn: Callable[[], None]):
+
+        while args and args[-1].startswith('-'):
+            opt = args.pop()
+
+            if self.is_help(opt):
+                help_fcn()
+                sys.exit(0)
+
+            if not self.parse_option(opt):
+                # TODO: manage this with python errors
+                print(c.RED.get_text(f'ERR: unknown option: {opt}'))
+                help_fcn()
+                sys.exit(1)
+
+
+def main():
     import glob
     import re
-    import sys
 
     if len(sys.argv) < 2:
         print_usage()
         sys.exit(1)
 
-    filename = sys.argv[1]
+    args = list(reversed(sys.argv[1:]))
+    # print('args: ', args)
+
+    opts = Opts()
+
+    opts.parse_all_args(args, print_usage)
+
+    if len(args) < 1:
+        print(c.RED.get_text('Not enough parameters'))
+        print_usage()
+        sys.exit(1)
+
+    filename_arg = args.pop()
+    filename = filename_arg
     code = []
     try:
-        filenum = int(filename)
+        filenum = int(filename_arg)
         print('filenum:', filenum)
         files = glob.glob('examples/*')
 
         for f in files:
-            if re.search(rf'[0-9]*{filenum}_.*\.bdsl', f):
+            if re.search(rf'0*{filenum}_.*\.bdsl', f):
                 filename = f
                 break
-        assert filename != sys.argv[1], f'File {filenum} not found'
+        assert filename_arg != filename, f'File {filenum} not found'
         print('executing:', filename)
     except ValueError:
         pass
@@ -459,6 +541,12 @@ if __name__ == "__main__":
     with open(filename, 'r', encoding='utf-8') as f:
         code = f.readlines()
 
-    exec_code(code)
+    program_data = ProgramData(filename)
+
+    exec_code(code, program_data, opts)
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
