@@ -30,10 +30,11 @@ class VarData:
             if isinstance(arg2, Bounds):
                 bounds = arg2
             else:
-                if arg2[0] is not None and arg2[1] is not None:
-                    assert arg2[0] < arg2[1], \
-                        f'Bounds {arg2} in line are invalid: min > max ({arg2[0]}<{
-                        arg2[1]})!'
+                a20, a21 = arg2[0], arg2[1]
+                if a20 is not None and a21 is not None:
+                    assert a20 < a21, (
+                        f'Bounds {arg2} in line are invalid: min > max ({a20}<{a21})!'
+                    )
                 bounds = Bounds(((arg2,)))
 
         return cls(name, bounds, size_i, expr)

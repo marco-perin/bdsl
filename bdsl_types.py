@@ -34,7 +34,7 @@ class ProgramData:
     # def __post_init__(self):
     # if self.args is None:1
 
-    def get_startline(self, lineno, default_digits=3):
+    def get_startline(self, lineno: int, default_digits: int = 3):
         return f'{self.filename}:{lineno:0{default_digits}}'
 
 
@@ -84,8 +84,8 @@ def split_context(
         context: VarContext, conds: Conditions
 ) -> tuple[VarContext, VarContext]:
 
-    filter_context = {}
-    complement_context = {}
+    filter_context: VarContext = {}
+    complement_context: VarContext = {}
 
     for c_var_name, c_interval in conds.items():
         if c_var_name in context:
@@ -147,7 +147,7 @@ def merge_contexts(
 iota_counter = 0  # pylint: disable=invalid-name
 
 
-def iota(reset=False):
+def iota(reset: bool = False):
     """
     Returns a unique integer each time it is called.
     If reset is True, the counter is reset to 0.

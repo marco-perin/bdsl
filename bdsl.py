@@ -19,8 +19,10 @@ from bdsl_types import (
     Colors as c
 )
 
-VERBOSE = False
-# VERBOSE = True
+from configuration import (
+    UNICODE_OUT,
+    VERBOSE
+)
 
 
 context_stack: list[VarContext] = []
@@ -43,26 +45,27 @@ def collapse_expr(
 
         r1 = opvars.pop(0)
         r2 = opvars.pop(0)
-
+        r10, r11 = r1[0], r1[1]
+        r20, r21 = r2[0], r2[1]
         if op == '/':
-            if r1[0] is None or r2[1] is None:
+            if r10 is None or r21 is None:
                 r_min = None
             else:
-                r_min = r1[0].value / r2[1].value
-            if r1[1] is None or r2[0] is None:
+                r_min = r10.value / r21.value
+            if r11 is None or r20 is None:
                 r_max = None
             else:
-                r_max = r1[1].value / r2[0].value
+                r_max = r11.value / r20.value
         else:
             op = ops[op]
-            if r1[0] is None or r2[0] is None:
+            if r10 is None or r20 is None:
                 r_min = None
             else:
-                r_min = op(r1[0], r2[0])
-            if r1[1] is None or r2[1] is None:
+                r_min = op(r10, r20)
+            if r11 is None or r21 is None:
                 r_max = None
             else:
-                r_max = op(r1[1], r2[1])
+                r_max = op(r11, r21)
             if r_min is not None and r_max is not None:
                 if r_max < r_min:
                     r_min, r_max = r_max, r_min
@@ -72,7 +75,7 @@ def collapse_expr(
             r_min = IntervalPoint(r_min)
         if r_max is not None:
             r_max = IntervalPoint(r_max)
-        opvars.append((r_min, r_max))
+        opvars.append(Interval(r_min, r_max))
     return opvars[0]
 
 
@@ -89,7 +92,7 @@ def calc_bounds(v_name: str, context: VarContext) -> Bounds:
     if len(expr) == 2:
         l_v = numOrNone(expr[0])
         u_v = numOrNone(expr[1])
-        return Bounds.from_interval((
+        return Bounds.from_interval(Interval(
             IntervalPoint(l_v) if l_v is not None else None,
             IntervalPoint(u_v) if u_v is not None else None
         ))
@@ -253,6 +256,10 @@ def pase_condition(tokens: list[str], context: VarContext) -> Conditions:
             print('t_type:', lexer.token_names[t_type], rest)
         if t_type == lexer.TOKEN_VAR:
             varname = rest[0]
+            # if varname not in context:
+            #     raise VariableNotDefinedError(
+            #         varname,
+            #     )
             assert varname in context, f'Variable {varname} not defined'
             vals.append(varname)
         elif t_type == lexer.TOKEN_COND:
@@ -342,7 +349,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                     b_l = IntervalPoint(b_l)
                 if b_u is not None:
                     b_u = IntervalPoint(b_u)
-                rest_line = (b_l, b_u)
+                rest_line = Interval(b_l, b_u)
             elif token_type == lexer.TOKEN_ASSIGN:
                 rest_line = tokens[ti+1:]
                 assert isinstance(varname, str)
@@ -354,7 +361,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                     val = numOrNone(tokens[ti+1])
                     if val is not None:
                         val = IntervalPoint(val)
-                    rest_line = (val, val)
+                    rest_line = Interval(val, val)
                     # print(rest_line)
                     # curr_context[varname].bounds = Bounds(((val, val),))
                     # curr_context[varname].expr = None
@@ -429,6 +436,8 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
 
         if varname is None:
             continue
+
+        assert mods is not None, 'WTF??'
 
         if '?' in mods:
             continue
