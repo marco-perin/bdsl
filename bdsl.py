@@ -47,34 +47,46 @@ def collapse_expr(
         r2 = opvars.pop(0)
         r10, r11 = r1[0], r1[1]
         r20, r21 = r2[0], r2[1]
+        min_in = False
+        max_in = False
         if op == '/':
             if r10 is None or r21 is None:
                 r_min = None
+                # min_in = False
             else:
                 r_min = r10.value / r21.value
+                min_in = r10.is_included and r21.is_included
+
             if r11 is None or r20 is None:
                 r_max = None
+                # max_in = False
             else:
                 r_max = r11.value / r20.value
+                max_in = r11.is_included and r20.is_included
         else:
             op = ops[op]
             if r10 is None or r20 is None:
                 r_min = None
+                # min_in = False
             else:
                 r_min = op(r10, r20)
+                min_in = r10.is_included and r20.is_included
             if r11 is None or r21 is None:
                 r_max = None
+                # max_in = False
             else:
                 r_max = op(r11, r21)
+                max_in = r11.is_included and r21.is_included
             if r_min is not None and r_max is not None:
                 if r_max < r_min:
                     r_min, r_max = r_max, r_min
+                    min_in, max_in = max_in, min_in
                 # r_min, r_max = min(r_min, r_max), max(r_min, r_max)
 
         if r_min is not None:
-            r_min = IntervalPoint(r_min)
+            r_min = IntervalPoint(r_min, min_in)
         if r_max is not None:
-            r_max = IntervalPoint(r_max)
+            r_max = IntervalPoint(r_max, max_in)
         opvars.append(Interval(r_min, r_max))
     return opvars[0]
 
@@ -342,13 +354,16 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                     print(msg)
 
             elif token_type == lexer.TOKEN_RANGE:
-                assert len(rest) == 2, f'Range {rest} malformed'
+                assert len(rest) == 4, f'Range {rest} malformed'
                 b_l = numOrNone(rest[0])
                 b_u = numOrNone(rest[1])
+                b_l_in = rest[2] == '.'
+                b_u_in = rest[3] == '.'
+
                 if b_l is not None:
-                    b_l = IntervalPoint(b_l)
+                    b_l = IntervalPoint(b_l, b_l_in)
                 if b_u is not None:
-                    b_u = IntervalPoint(b_u)
+                    b_u = IntervalPoint(b_u, b_u_in)
                 rest_line = Interval(b_l, b_u)
             elif token_type == lexer.TOKEN_ASSIGN:
                 rest_line = tokens[ti+1:]

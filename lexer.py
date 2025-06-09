@@ -52,7 +52,7 @@ COMMENT_RE = r'^[;]+(?P<comment>[.]*)$'
 
 VAR_RE = rf'^([_A-z]{{1}}[_A-z0-9]*)([{MODS_RE}]?)$'
 OP_RE = rf'^([{OPS_RE}])$'
-RANGE_RE = r'^(?P<min>-?[0-9]*)\.\.(?P<max>-?[0-9]*)$'
+RANGE_RE = r'^(?P<min_in>\.?)(?P<min>-?[0-9]*)\.\.(?P<max>-?[0-9]*)(?P<max_in>\.?)$'
 COND_RE = rf'[ ]?({CONDS_RE})[ ]?$'
 CMD_RE = r'^(\?\?|>>|--)[ ]?$'
 NUM_RE = r'^(-?[0-9]+)$'
@@ -90,7 +90,9 @@ def get_token_type(tok: str):
         groups = range_match.groupdict()
         r_min = groups['min']
         r_max = groups['max']
-        return (TOKEN_RANGE, r_min, r_max)
+        r_min_in = groups['min_in']
+        r_max_in = groups['max_in']
+        return (TOKEN_RANGE, r_min, r_max, r_min_in, r_max_in)
 
     size_match = re.match(SIZE_RE, tok)
     if size_match:
