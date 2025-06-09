@@ -30,6 +30,8 @@ to run example number # from the [examples/](examples/) folder.
 List of features that are supported and that are not (yet)
 
 - [x] Assignment
+- [x] Comments
+- [ ] Logging to console 
 - [x] Simple operations between variables (+,-,*,/)
 - [x] Control flow statement
   - [x] `if` with one condition
@@ -91,3 +93,19 @@ Then, `>>` is else, and `--` is `end`.
 I chose this just for fun, trying to find a syntax that could be
 both fun, pretty, a bit different, but still usable.
 
+
+## Function
+
+<!-- TODO: NOT IMPLEMENTED -->
+
+```
+
+fn test_fcn(x, y)
+    res = ;; ...
+    << res
+--
+
+```
+
+`fn` is the keyword to define a function. `--` ends the function scope (like a closing bracket, so if another scope, like the if one is active, that one is closed first).
+`<<` instead is the keyword that represents the return statement.

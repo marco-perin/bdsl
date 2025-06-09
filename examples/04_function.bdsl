@@ -1,0 +1,15 @@
+
+fn test_fcn(x,y)
+    res = x+y
+    << res
+--
+
+
+x 0..10
+y -2..12
+
+z test_fcn(x,y)
+
+
+z?
+
