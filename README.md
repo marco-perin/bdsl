@@ -42,7 +42,8 @@ List of features that are supported and that are not (yet)
 - [ ] For loop
 - [ ] Jumps (?)
 - [ ] Strings
-- [ ] Functions
+- [x] Functions
+  - [ ] Built-in math functions
 - [ ] Being self hosted
   - This is extremely long term, since before this I need to figure out what this language could actually be used for.
   
@@ -95,8 +96,6 @@ both fun, pretty, a bit different, but still usable.
 
 
 ## Function
-
-<!-- TODO: NOT IMPLEMENTED -->
 
 ```
 
