@@ -1,15 +1,20 @@
 
-fn test_fcn(x,y)
-    res = x+y
+fn test_fcn(a, b)
+    res = a + b
     << res
 --
-
 
 x 0..10
 y -2..12
 
-z test_fcn(x,y)
-
-
+;; Define z
+z = test_fcn(x, y)
+q = x + y
+;; Show function definition
+?
+;; Finalize z value
+z.
+q.
+;; Print z value
 z?
-
+q?

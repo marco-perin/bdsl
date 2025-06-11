@@ -7,16 +7,17 @@ from typing import Callable
 from bounds import Bounds, IntOrFloat, Interval, IntervalPoint
 from examples.errors import VariableNotDefinedError
 import lexer
+from colors import c
 from bdsl_types import (
     InterpreterContext,
     ProgramData,
     VarData,
     VarContext,
+    FunctionData,
     Conditions,
     merge_contexts,
     numOrNone,
-    split_context,
-    Colors as c
+    split_context
 )
 
 from configuration import (
@@ -28,6 +29,7 @@ from configuration import (
 context_stack: list[VarContext] = []
 other_context_stack: list[VarContext] = []
 split_cond_stack: list[Conditions] = []
+functions: dict[str, FunctionData] = {}
 
 
 def collapse_expr(
@@ -91,7 +93,11 @@ def collapse_expr(
     return opvars[0]
 
 
-def calc_bounds(v_name: str, context: VarContext) -> Bounds:
+def calc_bounds(
+    v_name: str, context: VarContext,
+    program_data: ProgramData,
+    opts: 'Opts'
+) -> Bounds:
     """Calculate bounds for variable v_name from given context"""
     assert v_name in context, f'Variable {v_name} not defined'
     vardata = context[v_name]
@@ -101,6 +107,20 @@ def calc_bounds(v_name: str, context: VarContext) -> Bounds:
             return Bounds(vardata.bounds.get_bounds())
     expr = vardata.expr
     assert expr is not None, f'Variable {v_name} has no expression'
+
+    assert len(expr) > 0
+    is_fn_call, rest = lexer.match_token(''.join(expr), lexer.FN_CALL_RE)
+    if is_fn_call:
+        assert rest is not None
+        fn_name = rest[0]
+        func = functions[fn_name]
+        args = rest[1].split(',')
+        assert len(args) == len(func.args), "Wrong number of arguments"
+
+        return evaluate_func(func, args, context, program_data, opts)
+
+        # Now the context stack will hold the function processed code.
+
     if len(expr) == 2:
         l_v = numOrNone(expr[0])
         u_v = numOrNone(expr[1])
@@ -151,20 +171,35 @@ def calc_bounds(v_name: str, context: VarContext) -> Bounds:
         if isinstance(op, IntervalPoint):
             varlist.append((op, op))
         else:
-            varlist.extend(calc_bounds(op, context).get_bounds())
+            varlist.extend(calc_bounds(
+                op, context, program_data, opts).get_bounds())
 
     result = collapse_expr(varlist, opops)
     return Bounds.from_interval(result)
 
 
 def print_vars(context: VarContext):
-    print('vars:')
+    print(c.YELLOW('vars:'))
     for v in context:
         print(f"\t{context[v]}")
         # print(vardict)
 
 
-def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool) -> Bounds:
+def print_fcns(opts: 'Opts'):
+    print(c.YELLOW('funcs:'))
+    for f in functions.values():
+        assert f.body
+        if opts.verbose == 0:
+            print(
+                f'\t{c.GREEN(f.name)}, args: {f.args}, body_count: {len(f.body)}')
+        else:
+            print(f'   {c.GREEN(f.name)} ({', '.join(f.args)})')
+            # print('  body:')
+            for line in f.body:
+                print('\t' + line)
+
+
+def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool, program_data, opts) -> Bounds:
     curr_context = context_stack[-1]
     assert not (isinstance(x, str) and isinstance(y, str)), \
         f'Cannot compare vars rn {x} == {y}'
@@ -176,7 +211,7 @@ def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool) -> Bounds:
         # print('bds:', curr_context[x].bounds)
         # print('expr:', curr_context[x].expr)
         if bds is None:
-            bds = calc_bounds(x, curr_context)
+            bds = calc_bounds(x, curr_context, program_data, opts)
         # assert bds is not None, f'Variable {x} has no bounds'
         return bds.copy().intersect_interval((IntervalPoint(y, eq), None))
 
@@ -228,29 +263,32 @@ def neq(x: IntOrFloat | str, y: IntOrFloat | str) -> Bounds:
     # return bds.copy().intersect_interval((val+1, None)).union_interval().get_bounds()
 
 
-def get_cond(vals: list[IntOrFloat | str], cond: str) -> Bounds:
+def get_cond(vals: list[IntOrFloat | str], cond: str, program_data, opts) -> Bounds:
     assert len(vals) == 2, f'Need 2 values for condition, got {vals}'
 
     if cond == '>':
-        return gt(vals[0], vals[1], False)
+        return gt(vals[0], vals[1], False, program_data, opts)
     if cond == '<':
-        return gt(vals[1], vals[0], False)
+        return gt(vals[1], vals[0], False, program_data, opts)
     if cond == '==':
         return eq(vals[0], vals[1])
     if cond == '!=':
         assert False, 'Operator "!=" not implemented'
         # return neq(vals[0], vals[1])
     if cond == '>=':
-        return gt(vals[0], vals[1], True)
+        return gt(vals[0], vals[1], True, program_data, opts)
         # assert False, 'Operator >=" not implemented'
         # return gte(vals[0], vals[1])
     if cond == '<=':
         # assert False, 'Operator <=" not implemented'
-        return gt(vals[1], vals[0], True)
+        return gt(vals[1], vals[0], True, program_data, opts)
     assert False, f'Condition {cond} not implemented'
 
 
-def pase_condition(tokens: list[str], context: VarContext) -> Conditions:
+def pase_condition(
+        tokens: list[str], context: VarContext,
+        program_data: ProgramData, opts: 'Opts'
+) -> Conditions:
     assert len(tokens) > 0, 'No tokens to parse'
     assert len(tokens) % 3 == 0, f'Condition {tokens} malformed'
 
@@ -288,11 +326,84 @@ def pase_condition(tokens: list[str], context: VarContext) -> Conditions:
 
     assert len(vals) == 2, 'need 2 values for condition'
 
-    conds[varname] = get_cond(vals, cond)
+    conds[varname] = get_cond(vals, cond, program_data, opts)
     return conds
 
 
-def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
+def print_var_msg(
+    varname: str,
+    line: str, line_num: int,
+    curr_context: VarContext,
+    interpreter_context: InterpreterContext,
+    program_data: ProgramData,
+    opts: 'Opts'
+):
+
+    if varname not in curr_context:
+        raise VariableNotDefinedError(
+            varname,
+            line_num,
+            interpreter_context=interpreter_context,
+            colno=line.find(varname)+1
+        )
+    header = c.FAINT(f'{line_num:03}')
+    bounds = calc_bounds(varname, curr_context, program_data, opts)
+
+    if opts.verbose > 0:
+        endl = c.FAINT(
+            f' [{line.strip().removesuffix('\n')}]')
+        if opts.verbose > 1:
+            header = c.FAINT(f'{program_data.filename}:{line_num:03}')
+    else:
+        endl = ''
+    if UNICODE_OUT:
+        msg = f'{header} : {c.GREEN(varname)} ∈ {bounds}{endl}'
+    else:
+        msg = f'{header} : BOUNDS({c.GREEN(varname)}): {bounds}{endl}'
+
+    print(msg)
+
+
+def evaluate_func(
+    func: FunctionData,
+    args: list[str],
+    context: VarContext,
+    program_data: ProgramData,
+    opts: 'Opts'
+) -> Bounds:
+
+    assert func.body, f"Function {func.name} has no body!"
+
+    func_context: VarContext = {}
+    for f_arg, arg in zip(func.args, args):
+        func_context[f_arg] = context[arg]
+        # NOTE: check if func name needs to be change or
+        #   if retaining the original name could be a feature
+        # func_context[f_arg].name = f_arg
+
+    context_stack.append(func_context)
+    exec_code(func.body, program_data, opts)
+    func_stack = context_stack.pop()
+
+    res_var_name = func_stack['!var_result'].name
+    bds = calc_bounds(res_var_name, func_stack, program_data, opts)
+
+    return bds
+
+
+def get_tokens(line: str):
+
+    # does not work when ops are not separated with spaces
+    #   (like x+y instead of x + y)
+    # TODO: implement custom tokenizer
+    return line.split()
+
+
+def exec_code(
+    code: list[str],
+    program_data: ProgramData,
+    opts: 'Opts'
+):
 
     if len(context_stack) == 0:
         context_stack.append({})
@@ -304,9 +415,11 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
 
     curr_context = context_stack[-1]
     mods = None
+    fn_name = None
+    fn_body = []
     for line_num, line in enumerate(code, start=1):
         interpreter_context.set_linedata(line, line_num)
-        tokens = line.split()
+        tokens = get_tokens(line)
         # print('tokens:',tokens)
         varname = None
         bounds = None
@@ -324,34 +437,45 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                     print('comment:', comm_text)
                 break
 
+            if fn_name is not None:
+                # Parsing function, either save to function body or end it
+                if token_type == lexer.TOKEN_END:
+                    assert fn_name in functions
+
+                    functions[fn_name].set_body(fn_body)
+                    fn_name = None
+                    fn_body = []
+
+                fn_body.append(' '.join(tokens))
+                break
+
+            if token_type == lexer.TOKEN_FN_DEF:
+                assert fn_name is None, 'Nested functions not supported atm'
+                rest = ''.join(tokens[ti+1:])
+                fn_name, rest = rest.split('(', 1)
+                args = rest.removesuffix(')').split(',')
+                functions[fn_name] = FunctionData(fn_name, args)
+                break
+            if token_type == lexer.TOKEN_FN_CALL:
+                rest_line = [token]
+                assert isinstance(varname, str)
+                break
+            if token_type == lexer.TOKEN_FN_RET:
+                # Assign return variable with magic name to get it
+                #   from context
+                curr_context['!var_result'] = curr_context[tokens[ti+1]]
+                return
+
             if token_type == lexer.TOKEN_VAR:
                 varname = rest[0]
                 mods = rest[1:]
                 if '?' in mods:
-                    if varname not in curr_context:
-                        raise VariableNotDefinedError(
-                            varname,
-                            line_num,
-                            interpreter_context=interpreter_context,
-                            colno=line.find(varname)+1
-                        )
-
-                    bounds = calc_bounds(varname, curr_context)
-
-                    header = c.FAINT.get_text(f'{line_num:03}')
-                    if opts.verbose > 0:
-                        endl = c.FAINT.get_text(
-                            f' [{line.strip().removesuffix('\n')}]')
-                        if opts.verbose > 1:
-                            header = f'{program_data.filename}:{line_num:03}'
-                    else:
-                        endl = ''
-                    if UNICODE_OUT:
-                        msg = f'{header} : {c.GREEN.get_text(varname)} ∈ {bounds}{endl}'
-                    else:
-                        msg = f'{header} : BOUNDS({c.GREEN.get_text(varname)}): {bounds}{endl}'
-
-                    print(msg)
+                    print_var_msg(
+                        varname,
+                        line, line_num,
+                        curr_context, interpreter_context,
+                        program_data, opts
+                    )
 
             elif token_type == lexer.TOKEN_RANGE:
                 assert len(rest) == 4, f'Range {rest} malformed'
@@ -369,7 +493,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                 rest_line = tokens[ti+1:]
                 assert isinstance(varname, str)
                 if VERBOSE:
-                    print('assign:', tokens[ti+1:])
+                    print('assign:', rest_line)
                 match_n, rest = lexer.match_token(tokens[ti+1], lexer.NUM_RE)
                 if match_n:
                     # print('NUM:', tokens[ti+1:])
@@ -384,6 +508,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
 
             elif token_type == lexer.TOKEN_QUEST:
                 print_vars(curr_context)
+                print_fcns(opts)
                 break
             # elif token_type == TOKEN_COND:
                 # if VERBOSE:
@@ -393,14 +518,16 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                 if VERBOSE:
                     print('IF: ', tokens[ti+1:])
 
-                cond: Conditions = pase_condition(tokens[ti+1:], curr_context)
+                cond: Conditions = pase_condition(
+                    tokens[ti+1:], curr_context, program_data, opts)
                 # print('cond:', cond)
                 # context_stack.append(curr_context.copy())
                 for v_name in cond:
                     assert v_name in curr_context, f'Variable {
                         v_name} not defined'
                     curr_context[v_name].bounds = calc_bounds(
-                        v_name, curr_context)
+                        v_name, curr_context,
+                        program_data, opts)
                     curr_context[v_name].expr = None
                 ctx, compl = split_context(curr_context, cond)
                 other_context_stack.append(compl)
@@ -424,6 +551,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
             elif token_type == lexer.TOKEN_END:
                 if VERBOSE:
                     print('END.')
+
                 # Merge contexts
                 curr_context = context_stack.pop()
                 comp_context = other_context_stack.pop()
@@ -432,12 +560,12 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                 for v_name in curr_context:
                     if curr_context[v_name].bounds is None:
                         curr_context[v_name].bounds = calc_bounds(
-                            v_name, curr_context)
+                            v_name, curr_context, program_data, opts)
                         curr_context[v_name].expr = None
                 for v_name in comp_context:
                     if comp_context[v_name].bounds is None:
                         comp_context[v_name].bounds = calc_bounds(
-                            v_name, comp_context)
+                            v_name, comp_context, program_data, opts)
                         comp_context[v_name].expr = None
                 curr_context = merge_contexts(
                     curr_context, comp_context, split_cond
@@ -469,7 +597,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                     f'Variable {varname} already defined. Cannot redeclare'
 
         if '.' in mods:
-            bounds = calc_bounds(varname, curr_context)
+            bounds = calc_bounds(varname, curr_context, program_data, opts)
             rest_line = bounds
 
         if rest_line is None:

@@ -16,7 +16,12 @@ TOKEN_NUM = iota()
 TOKEN_IF = iota()
 TOKEN_ELSE = iota()
 TOKEN_END = iota()
+TOKEN_FN_DEF = iota()
+TOKEN_FN_RET = iota()
+TOKEN_FN_CALL = iota()
 # Other ops ...
+
+# Leave as last, used for assertions
 TOKEN_MAX = iota()
 
 
@@ -33,6 +38,9 @@ token_names = [
     'IF',
     'ELSE',
     'END',
+    'FN_DEF',
+    'FN_RET',
+    'FN_CALL',
 ]
 
 assert len(token_names) == TOKEN_MAX, \
@@ -48,7 +56,7 @@ OPS_RE = OPS.replace('-', r'\-').replace('/', r'\/')
 
 CONDS_RE = '>|<|==|!=|>=|<='
 
-COMMENT_RE = r'^[;]+(?P<comment>[.]*)$'
+COMMENT_RE = r'^;; ?(?P<comment>.*)$'
 
 VAR_RE = rf'^([_A-z]{{1}}[_A-z0-9]*)([{MODS_RE}]?)$'
 OP_RE = rf'^([{OPS_RE}])$'
@@ -58,9 +66,17 @@ CMD_RE = r'^(\?\?|>>|--)[ ]?$'
 NUM_RE = r'^(-?[0-9]+)$'
 SIZE_RE = r'^\((?P<size>[0-9,]*)\)$'
 
+FN_RE = r'^fn$'
+FN_FULL_RE = r'^fn? (?P<fn_name>[A-z]\w*)\((?P<fn_args>.*)\)$'
+
+FN_RET_RE = r'^<<$'
+FN_CALL_RE = r'^(?P<fn_name>[A-z]\w*)\((?P<fn_args>.*)\)$'
+
+
+assert TOKEN_MAX == 15, f'Implementation not done for {TOKEN_MAX} tokens'
+
 
 def get_token_type(tok: str):
-    assert TOKEN_MAX == 12, f'Implementation not done for {TOKEN_MAX} tokens'
     # if VERBOSE:
     #     print(f'get_token_type: "{tok}"')
 
@@ -74,6 +90,10 @@ def get_token_type(tok: str):
 
     if tok == '?':
         return (TOKEN_QUEST, tok)
+
+    fn_match = re.match(FN_RE, tok)
+    if fn_match:
+        return (TOKEN_FN_DEF, tok)
 
     var_match = re.match(VAR_RE, tok)
     if var_match:
@@ -117,6 +137,18 @@ def get_token_type(tok: str):
             return (TOKEN_ELSE, tok)
         if tok_match == '--':
             return (TOKEN_END, tok)
+
+    fn_ret_match = re.match(FN_RET_RE, tok)
+    if fn_ret_match:
+        return (TOKEN_FN_RET, tok)
+
+    fn_call_match = re.match(FN_CALL_RE, tok)
+    if fn_call_match:
+        groups = fn_call_match.groupdict()
+        fn_name = groups['fn_name']
+        fn_args = groups['fn_args']
+
+        return (TOKEN_FN_CALL, fn_name, fn_args)
 
     assert False, f'Token "{tok}" not matched'
 

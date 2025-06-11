@@ -1,6 +1,5 @@
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Dict
 
 from bounds import Bounds, IntOrFloat
@@ -55,29 +54,22 @@ class InterpreterContext:
         self.curr_line = InterpreterContext.LineData(line, lineno)
 
 
-class Colors(Enum):
-    HEADER = '\033[95m'
-    FAIL = '\033[91m'
-    RED = '\033[31m'
-    BRIGHTRED = '\033[91m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    WARNING = '\033[93m'
-    BLUE = '\033[94m'
-    MAGENTA = '\033[35m'
-    BRIGHTMAGENTA = '\033[95m'
-    CYAN = '\033[96m'
-    BRIGHTCYAN = '\033[96m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    FAINT = '\033[2m'
-    UNDERLINE = '\033[4m'
-    BLINK_SLOW = '\033[5m'
-    BLINK_FAST = '\033[6m'
-    REVERSE = '\033[7m'
+class FunctionData:
+    """
+    Data class to store a function
+    """
 
-    def get_text(self, text: str | int | float):
-        return f'{self.value}{text}{Colors.ENDC.value}'
+    name: str
+    args: list[str]
+    body: list[str] | None = None
+
+    def __init__(self, name: str, args: list[str]) -> None:
+        self.name = name
+        self.args = args
+
+    def set_body(self, body: list[str]):
+        """Sets the body of a function"""
+        self.body = body
 
 
 def split_context(

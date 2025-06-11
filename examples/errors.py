@@ -1,5 +1,6 @@
 import sys
-from bdsl_types import Colors as c,  InterpreterContext
+from colors import c
+from bdsl_types import InterpreterContext
 
 
 # class CLIError(Exception):

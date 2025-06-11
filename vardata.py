@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from bounds import Bounds, Interval
 from configuration import UNICODE_OUT
+from colors import c
 
 
 @dataclass
@@ -17,7 +18,8 @@ class VarData:
     def auto(cls,
              name: str,
              arg2: Bounds | Interval | list[str],
-             size: str | None):
+             size: str | None
+             ):
 
         size_i: int | None = 1 if size is None else int(size)
 
@@ -45,8 +47,12 @@ class VarData:
             return VarData(self.name, self.bounds.copy(), self.size, self.expr)
         return VarData(self.name, None, self.size, self.expr)
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
     def __str__(self):
 
+        varname = c.GREEN(self.name)
         if self.expr is None:
             assert self.bounds is not None
             bs = self.bounds  # .get_bounds()
@@ -60,10 +66,11 @@ class VarData:
             # )
             bs_string = str(bs)
             # return f'{self.name} ({self.size}) [{b_min}..{b_max}]'
-            if UNICODE_OUT:
-                return f'{self.name} ∈ {bs_string}'
 
-            return f'{self.name} : {bs_string}'
+            if UNICODE_OUT:
+                return f'{varname} ∈ {bs_string}'
+
+            return f'{varname} : {bs_string}'
 
         # return f'{self.name} ({self.size}) "{' '.join(self.expr)}"'
-        return f'{self.name} "{' '.join(self.expr)}"'
+        return f'{varname} "{' '.join(self.expr)}"'
