@@ -65,6 +65,7 @@ COND_RE = rf'[ ]?({CONDS_RE})[ ]?$'
 CMD_RE = r'^(\?\?|>>|--)[ ]?$'
 NUM_RE = r'^(-?[0-9]+)$'
 SIZE_RE = r'^\((?P<size>[0-9,]*)\)$'
+QUEST_RE = r'^\?(?P<mod>f|v|a)?$'
 
 FN_RE = r'^fn$'
 FN_FULL_RE = r'^fn? (?P<fn_name>[A-z]\w*)\((?P<fn_args>.*)\)$'
@@ -88,8 +89,9 @@ def get_token_type(tok: str):
     if tok == '=':
         return (TOKEN_ASSIGN, tok)
 
-    if tok == '?':
-        return (TOKEN_QUEST, tok)
+    quest_match = re.match(QUEST_RE, tok)
+    if quest_match:
+        return (TOKEN_QUEST, quest_match.groups()[0])
 
     fn_match = re.match(FN_RE, tok)
     if fn_match:

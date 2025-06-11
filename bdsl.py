@@ -544,8 +544,15 @@ def exec_code(
                 break
 
             elif token_type == lexer.TOKEN_QUEST:
-                print_vars(curr_context)
-                print_fcns(opts)
+                mod = rest[0]
+                if mod is None:
+                    mod = 'a'
+
+                if mod in ('v', 'a'):
+                    print_vars(curr_context)
+                if mod in ('f', 'a'):
+                    print_fcns(opts)
+
                 break
             # elif token_type == TOKEN_COND:
                 # if VERBOSE:

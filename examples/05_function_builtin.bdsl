@@ -9,7 +9,7 @@ b = sqrt(y)
 c = sqrt(z)
 
 ;; Show function definitions
-?
+?f
 
 ;; Finalize z value
 a.

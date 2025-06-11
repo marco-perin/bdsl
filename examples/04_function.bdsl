@@ -11,7 +11,7 @@ y -2..12
 z = test_fcn(x, y)
 q = x + y
 ;; Show function definition
-?
+?f
 ;; Finalize z value
 z.
 q.

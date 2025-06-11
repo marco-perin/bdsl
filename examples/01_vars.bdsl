@@ -3,7 +3,7 @@ x          0..10.
 y          0..15
 w          .2..5
 
-?
+?v
 
 a        2..
 a?
@@ -15,7 +15,7 @@ x?
 y?
 a?
 z?
-?
+?v
 ;; Finalyze z variable
 z.
-?
+?v
