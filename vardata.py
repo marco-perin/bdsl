@@ -17,13 +17,15 @@ class VarData:
     @classmethod
     def auto(cls,
              name: str,
-             arg2: Bounds | Interval | list[str],
+             arg2: Bounds | Interval | list[str] | None,
              size: str | None
              ):
 
         size_i: int | None = 1 if size is None else int(size)
-
-        if isinstance(arg2, list):
+        if arg2 is None:
+            bounds = None
+            expr = None
+        elif isinstance(arg2, list):
             assert all(isinstance(arg2i, str) for arg2i in arg2), \
                 f'Expression {arg2} must be a list of strings'
             expr = arg2

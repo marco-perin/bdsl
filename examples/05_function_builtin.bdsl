@@ -1,0 +1,22 @@
+
+x 0..10  ;; No problems with sqrt
+y -2..12 ;; Will only have solutions for positive range
+z -5..-3 ;; Will have no solution
+
+;; Apply sqrt
+a = sqrt(x)
+b = sqrt(y)
+c = sqrt(z)
+
+;; Show function definitions
+?
+
+;; Finalize z value
+a.
+b.
+c.
+
+;; Print z value
+a?
+b?
+c?

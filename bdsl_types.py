@@ -1,8 +1,14 @@
 
+from abc import abstractmethod
 from dataclasses import dataclass
+from math import sqrt
 from typing import Dict
 
-from bounds import Bounds, IntOrFloat
+from bounds import (
+    Bounds, IntOrFloat,
+    Interval, IntervalPoint,
+    f_apply, split_interval
+)
 from vardata import VarData
 
 
@@ -20,6 +26,16 @@ def numOrNone(s: str) -> IntOrFloat | None:
 type VarContext = Dict[str, VarData]
 # TODO: Use Bounds instead of Interval for conditions?.
 type Conditions = Dict[str, Bounds]
+
+builtinFunctions: list['BuiltinFunction'] = []
+
+
+def populate_builtin_fcns(
+        functions: dict[str,
+                        'FunctionData | BuiltinFunction'
+                        ]):
+    for f in builtinFunctions:
+        functions[f.name] = f
 
 
 @dataclass
@@ -62,6 +78,7 @@ class FunctionData:
     name: str
     args: list[str]
     body: list[str] | None = None
+    _builtin: bool = False
 
     def __init__(self, name: str, args: list[str]) -> None:
         self.name = name
@@ -70,6 +87,41 @@ class FunctionData:
     def set_body(self, body: list[str]):
         """Sets the body of a function"""
         self.body = body
+
+    @property
+    def is_builtin(self):
+        return self._builtin
+
+
+class BuiltinFunction(FunctionData):
+    """Builtin functions. evaluates directly"""
+    _builtin = True
+
+    @abstractmethod
+    def eval(self, interval: Interval) -> None | Interval:
+        raise NotImplementedError
+
+
+class SqrtFunction(BuiltinFunction):
+
+    def __init__(self) -> None:
+        super().__init__(name='sqrt', args=['x'])
+
+    def eval(self, interval: Interval) -> None | Interval:
+        _, sol = split_interval(interval, IntervalPoint(0, True))
+
+        if sol is None:
+            return None
+
+        def i_sqrt(x: IntervalPoint) -> IntervalPoint:
+            assert x.value >= 0
+            x.value = sqrt(x.value)
+            return x
+
+        return f_apply(i_sqrt, sol, False)
+
+
+builtinFunctions.append(SqrtFunction())
 
 
 def split_context(

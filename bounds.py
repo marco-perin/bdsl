@@ -91,6 +91,23 @@ def f_intersect(
     return f(x, y)
 
 
+def f_apply(
+    f: Callable[[IntervalPoint], IntervalPoint],
+    i: Interval,
+    invert: bool
+):
+    i0, i1 = i
+
+    if i0:
+        i0 = f(i0)
+    if i1:
+        i1 = f(i1)
+    if not invert:
+        return Interval(i0, i1)
+
+    return Interval(i1, i0)
+
+
 def interval_intersect(b1: Interval, b2: Interval) -> Interval:
     b_min = f_intersect(min,  b1[0], b2[0])
     b_max = f_intersect(max,  b1[1], b2[1])
@@ -105,6 +122,24 @@ def invert_interval(b: Interval) -> list[Interval]:
         return [Interval(None, b[0])]
 
     return [Interval(None, b[0]), Interval(b[1], None)]
+
+
+def split_interval(i: Interval, x: IntervalPoint) -> tuple[Interval | None, Interval | None]:
+    """Splits an interval at point x in two intervals"""
+    i0, i1 = i
+
+    # NOTE: is it correct to restrict x to be in bounds?
+    if i0 is not None:
+        # assert x > i0.value
+        if x < i0.value:
+            return None, i
+    if i1 is not None:
+        # assert x < i1.value
+        if x > i1.value:
+            return i, None
+
+    # TODO: Check what to do with includedness ?
+    return Interval(i0, x), Interval(x, i1)
 
 
 def nInInterval(n: IntervalPoint, interval: Interval) -> bool:

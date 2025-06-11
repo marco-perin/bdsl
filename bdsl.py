@@ -3,12 +3,15 @@
 
 
 import sys
+from warnings import warn
 from typing import Callable
+
 from bounds import Bounds, IntOrFloat, Interval, IntervalPoint
 from examples.errors import VariableNotDefinedError
 import lexer
 from colors import c
 from bdsl_types import (
+    BuiltinFunction,
     InterpreterContext,
     ProgramData,
     VarData,
@@ -17,19 +20,21 @@ from bdsl_types import (
     Conditions,
     merge_contexts,
     numOrNone,
+    populate_builtin_fcns,
     split_context
 )
 
 from configuration import (
     UNICODE_OUT,
-    VERBOSE
+    VERBOSE,
+    WARN_IF_NONE
 )
 
 
 context_stack: list[VarContext] = []
 other_context_stack: list[VarContext] = []
 split_cond_stack: list[Conditions] = []
-functions: dict[str, FunctionData] = {}
+functions: dict[str, FunctionData | BuiltinFunction] = {}
 
 
 def collapse_expr(
@@ -73,12 +78,14 @@ def collapse_expr(
             else:
                 r_min = op(r10, r20)
                 min_in = r10.is_included and r20.is_included
+
             if r11 is None or r21 is None:
                 r_max = None
                 # max_in = False
             else:
                 r_max = op(r11, r21)
                 max_in = r11.is_included and r21.is_included
+
             if r_min is not None and r_max is not None:
                 if r_max < r_min:
                     r_min, r_max = r_max, r_min
@@ -97,7 +104,7 @@ def calc_bounds(
     v_name: str, context: VarContext,
     program_data: ProgramData,
     opts: 'Opts'
-) -> Bounds:
+) -> Bounds | None:
     """Calculate bounds for variable v_name from given context"""
     assert v_name in context, f'Variable {v_name} not defined'
     vardata = context[v_name]
@@ -106,7 +113,11 @@ def calc_bounds(
             # print('TRUE BOUNDS: ', vardata.bounds.get_bounds())
             return Bounds(vardata.bounds.get_bounds())
     expr = vardata.expr
-    assert expr is not None, f'Variable {v_name} has no expression'
+
+    if expr is None:
+        if WARN_IF_NONE:
+            warn(f'variable {v_name} got None bounds and expression')
+        return None
 
     assert len(expr) > 0
     is_fn_call, rest = lexer.match_token(''.join(expr), lexer.FN_CALL_RE)
@@ -171,8 +182,10 @@ def calc_bounds(
         if isinstance(op, IntervalPoint):
             varlist.append((op, op))
         else:
-            varlist.extend(calc_bounds(
-                op, context, program_data, opts).get_bounds())
+            bds = calc_bounds(op, context, program_data, opts)
+            if bds is None:
+                return None
+            varlist.extend(bds.get_bounds())
 
     result = collapse_expr(varlist, opops)
     return Bounds.from_interval(result)
@@ -188,14 +201,17 @@ def print_vars(context: VarContext):
 def print_fcns(opts: 'Opts'):
     print(c.YELLOW('funcs:'))
     for f in functions.values():
-        assert f.body
+
+        body = ['!builtin'] if f.is_builtin else f.body
+        assert body
+
         if opts.verbose == 0:
             print(
-                f'\t{c.GREEN(f.name)}, args: {f.args}, body_count: {len(f.body)}')
+                f'\t{c.GREEN(f.name)}, args: {f.args}, body_count: {len(body)}')
         else:
             print(f'   {c.GREEN(f.name)} ({', '.join(f.args)})')
             # print('  body:')
-            for line in f.body:
+            for line in body:
                 print('\t' + line)
 
 
@@ -370,7 +386,28 @@ def evaluate_func(
     context: VarContext,
     program_data: ProgramData,
     opts: 'Opts'
-) -> Bounds:
+) -> Bounds | None:
+
+    if func.is_builtin:
+        assert isinstance(func, BuiltinFunction)
+        interval = context_stack[-1][args[0]].bounds
+        assert interval
+
+        res_mixed = [
+            i for i in
+            (func.eval(i) for i in interval.get_bounds()
+             )
+            if i is not None
+        ]
+        i = 0
+        if len(res_mixed) == 0:
+            return None
+        res = Bounds.from_interval(res_mixed[0])
+        # if len(res_mixed) > 1:
+        for i in range(1, len(res_mixed)):
+            res.union_interval(res_mixed[i])
+
+        return res
 
     assert func.body, f"Function {func.name} has no body!"
 
@@ -441,8 +478,8 @@ def exec_code(
                 # Parsing function, either save to function body or end it
                 if token_type == lexer.TOKEN_END:
                     assert fn_name in functions
-
-                    functions[fn_name].set_body(fn_body)
+                    assert not functions[fn_name].is_builtin
+                    functions[fn_name].set_body(fn_body)  # type: ignore
                     fn_name = None
                     fn_body = []
 
@@ -600,9 +637,6 @@ def exec_code(
             bounds = calc_bounds(varname, curr_context, program_data, opts)
             rest_line = bounds
 
-        if rest_line is None:
-            assert False, f'r for variable {varname} not initialized'
-
         curr_context[varname] = VarData.auto(varname, rest_line, size)
 
 
@@ -694,7 +728,7 @@ def main():
         code = f.readlines()
 
     program_data = ProgramData(filename)
-
+    populate_builtin_fcns(functions)
     exec_code(code, program_data, opts)
 
     sys.exit(0)

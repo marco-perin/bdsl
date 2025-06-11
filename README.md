@@ -43,7 +43,9 @@ List of features that are supported and that are not (yet)
 - [ ] Jumps (?)
 - [ ] Strings
 - [x] Functions
-  - [ ] Built-in math functions
+  - [x] Built-in math functions support
+    - [x] `sqrt`
+    - [ ] others
 - [ ] Being self hosted
   - This is extremely long term, since before this I need to figure out what this language could actually be used for.
   
@@ -98,13 +100,11 @@ both fun, pretty, a bit different, but still usable.
 ## Function
 
 ```
-
 fn test_fcn(x, y)
     res = ;; ...
     << res
 --
-
 ```
 
-`fn` is the keyword to define a function. `--` ends the function scope (like a closing bracket, so if another scope, like the if one is active, that one is closed first).
+`fn` is the keyword to define a function. `--` ends the function scope (like a closing bracket, so if another scope, like the `if` one is active, that one is closed first).
 `<<` instead is the keyword that represents the return statement.
