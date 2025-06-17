@@ -49,7 +49,8 @@ class VarData:
         return VarData(self.name, None, self.size, self.expr)
 
     def __repr__(self) -> str:
-        return self.__str__()
+        # varname = self.name
+        return f'{self.name} : {self.bounds}'
 
     def __str__(self):
 
