@@ -126,7 +126,8 @@ def collapse_expr(opvars: list[Bounds], opops: list[str]):
                 # print(f'bbs: {bbs}')
 
         assert bbs
-        opvars.append(bbs)
+        opvars.insert(0, bbs)
+    assert len(opvars) == 1
     return opvars[0]
 
 
@@ -553,7 +554,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                 if VERBOSE:
                     print('assign:', rest_line)
                 match_n, rest = lexer.match_token(tokens[ti + 1], lexer.NUM_RE)
-                if match_n:
+                if match_n and len(rest_line) == 1:
                     # print('NUM:', tokens[ti+1:])
                     val = numOrNone(tokens[ti + 1])
                     if val is not None:
