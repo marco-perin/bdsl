@@ -1,3 +1,5 @@
+;; !!!RAISES VariableNotDefinedError
+
 ;; Init var
 x 0..10
 y 5..20
