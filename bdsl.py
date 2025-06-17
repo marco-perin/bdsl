@@ -392,18 +392,25 @@ def print_var_msg(
     bounds = calc_bounds(varname, curr_context, program_data, opts)
 
     if opts.verbose > 0:
-        endl = c.FAINT(f' [{line.strip().removesuffix('\n')}]')
         if opts.verbose > 1:
             header = c.FAINT(f'{program_data.filename}:{line_num:03}')
+
+        endl = c.FAINT(f'[{line.strip().removesuffix('\n')}]')
     else:
         endl = ''
     if UNICODE_OUT:
-        msg = f'{header} : {c.GREEN(varname)} ∈ {bounds}{endl}'
+        msg = f'{header} : {c.GREEN(varname)} ∈ {bounds}'
     else:
-        msg = f'{header} : BOUNDS({c.GREEN(varname)}): {bounds}{endl}'
+        msg = f'{header} : BOUNDS({c.GREEN(varname)}): {bounds}'
+
+    if opts.verbose == 0:
+        msg = f'{msg}{endl}'
+    elif opts.verbose == 1:
+        msg = f'{msg:<70}{endl}'
+    elif opts.verbose >= 2:
+        msg = f'{msg:<100}{endl}'
 
     print(msg)
-
 
 def evaluate_func(
     func: FunctionData,

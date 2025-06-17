@@ -500,11 +500,11 @@ class Bounds:
         return self.__str__()
 
     def __str__(self):
+        lst = map(str, self.get_bounds())
         if not UNICODE_OUT:
-            lst = map(str, (b for b in self.get_bounds()))
-            return str(lst)
+            return '' + ' U '.join(lst) + ''
 
-        return '' + ' ∪ '.join(map(str, self.get_bounds())) + ''
+        return '' + ' ∪ '.join(lst) + ''
 
 
 def main():
