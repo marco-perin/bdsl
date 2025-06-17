@@ -219,7 +219,44 @@ def test_union_interval_nones_in_both():
 
 def test_union_bounds():
     assert (
-        Bounds.from_num_tuples(((3, None),)).union_bounds(Bounds.from_num_tuples(
-            ((2, None),)
-        )).get_bounds() == ((2, None),)
+        Bounds.from_num_tuples(((3, None),))
+    ).get_bounds() == ((2, None),)
+
+
+def test_union_with_excluded_point():
+    assert Bounds.from_num_tuples(((-2, 0),), False).union_bounds(
+        Bounds.from_num_tuples(((0, 2),), False)
+    ) == Bounds.from_num_tuples(((-2, 0), (0, 2)), False)
+
+
+def test_union_with_points():
+
+    assert Bounds.from_interval(
+        I(IP(5), IP(5)),
+    ).union_interval(I(IP(0), IP(4))) == Bounds(
+        (
+            (IP(0), IP(4)),
+            (IP(5), IP(5)),
+        )
     )
+
+    assert Bounds.from_interval(
+        I(IP(0), IP(4)),
+    ).union_interval(I(IP(5), IP(5))) == Bounds(
+        (
+            I(IP(0), IP(4)),
+            I(IP(5), IP(5)),
+        )
+    )
+
+    assert Bounds.from_interval(
+        I(IP(5), IP(5)),
+    ).union_interval(
+        I(IP(0), IP(5, False))
+    ) == Bounds(((IP(0), IP(5)),))
+
+    assert Bounds.from_interval(
+        I(IP(0), IP(0)),
+    ).union_interval(
+        I(IP(0, False), IP(5))
+    ) == Bounds(((IP(0), IP(5)),))

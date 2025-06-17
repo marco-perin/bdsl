@@ -1,4 +1,3 @@
-
 from configuration import UNICODE_OUT
 from typing import Callable, Literal, Tuple, Self
 
@@ -12,40 +11,36 @@ class IntervalPoint:
         self.value = value
         self.is_included = is_included
 
-    def __eq__(self, other: Self | IntOrFloat) -> bool:
+    def __eq__(self, other: Self | IntOrFloat | object) -> bool:
+        if other is None:
+            return self is None
         if isinstance(other, IntervalPoint):
-            return (
-                self.value == other.value
-            ) and (
-                self.is_included
-            ) and (
-                other.is_included
-            )
+            return (self.value == other.value) and ((self.is_included) == (other.is_included))
+        if isinstance(other, type(self)):
+            return self.value == other
         return self.value == other
 
     def __gt__(self, other: Self | IntOrFloat) -> bool:
         if isinstance(other, IntervalPoint):
-            if self.is_included and other.is_included:
-                return self.value >= other.value
             return self.value > other.value
         if self.is_included:
-            return self.value >= other
+            return self.value > other
         return self.value > other
 
     def __lt__(self, other: Self | IntOrFloat) -> bool:
         if isinstance(other, IntervalPoint):
-            if self.is_included and other.is_included:
-                return self.value <= other.value
             return self.value < other.value
         if self.is_included:
-            return self.value <= other
+            return self.value < other
         return self.value < other
 
     def __ge__(self, other: Self | IntOrFloat) -> bool:
-        assert False, 'Use > instead of >=, it takes into account the inclusion'
+        gt = self.__gt__(other)
+        return gt or self == other
 
     def __le__(self, other: Self | IntOrFloat) -> bool:
-        assert False, 'Use < instead of <=, it takes into account the inclusion'
+        lt = self.__lt__(other)
+        return lt or self == other
 
     def __repr__(self) -> str:
         return f'{self.value}'
@@ -180,6 +175,19 @@ class Bounds:
         ]
         self.__set_list(_bounds)
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Bounds):
+            return NotImplemented
+
+        if len(self.__list) != len(other.__list):
+            return False
+
+        for self_point, other_point in zip(self.__list, other.__list):
+            if self_point != other_point:
+                return False
+
+        return True
+
     @classmethod
     def from_list(cls, interval: list[Interval]):
         return cls(tuple(interval))
@@ -282,17 +290,20 @@ class Bounds:
                 break
             assert b_1 is not None and b_2 is not None, 'Unreachable'
 
-            if b_1 < b_2:
+            if b_1 <= b_2:
                 i_1 += 1
 
                 if (not tracing_2):
                     # Add point if not between two intervals
+                    b_1.is_included = b_1.is_included or b_1.is_included != b_2.is_included
                     new_bds.append(b_1)
                 tracing_1 = not tracing_1
             else:
                 i_2 += 1
                 if (not tracing_1):
                     # Add point if not between two intervals
+                    b_2.is_included = b_2.is_included or b_1.is_included != b_2.is_included
+
                     new_bds.append(b_2)
                 tracing_2 = not tracing_2
 
@@ -305,10 +316,54 @@ class Bounds:
                 new_bds.extend(bds_2[i_2:])
 
         # Sanitize - remove overlapping bounds
-        for i in range(len(new_bds)-2, 0, -1):
-            if new_bds[i] == new_bds[i+1]:
-                new_bds.pop(i+1)
+        i = len(new_bds) - 2
+        while i > 0:
+
+            b1, b2 = new_bds[i], new_bds[i + 1]
+
+
+            def pop(i, b_prev: IntervalPoint | None = None):
+                if (
+                    b_prev
+                    # i > 1
+                    # and b1 is not None
+                    # and new_bds[i - 1] is not None
+                    and isinstance(b1, IntervalPoint)
+                    and b_prev.value == b1.value
+                    and (b1.is_included != b_prev.is_included)
+                ):
+                    new_bds[i - 1].is_included = True
+                new_bds.pop(i + 1)
                 new_bds.pop(i)
+
+            if b1 == b2:
+                if b1 is None and b2 is None:
+                    pop(i)
+                    i -= 1
+                else:
+                    assert b1 is not None and b2 is not None
+                    assert isinstance(b1, IntervalPoint)
+                    if b1.is_included and b2.is_included:
+                        if i > 1:
+                            b_prev = new_bds[i - 1]
+                            assert isinstance(b_prev, IntervalPoint)
+                            if (
+                                b_prev is not None
+                                and b_prev.value == b1.value
+                                and (b1.is_included == b_prev.is_included)
+                            ):
+                                pop(i, b_prev)
+                                i -= 1
+                        elif i < len(new_bds) - 2:
+                            # print('i:', i, len(new_bds))
+                            pop(i)
+                            i -= 1
+
+            # print(
+            #     'new_bds after_check:',
+            #     [f'{b}{')' if not b.is_included else ']'}' for b in new_bds],
+            # )
+            i -= 1
 
         # print('new_bds fin:', new_bds)
         self.__list = new_bds
@@ -351,7 +406,7 @@ class Bounds:
             # assert b_1 is not None and b_2 is not None, 'Unreachable'
             if b_1 is None or b_2 is None:
                 break
-            if b_1 < b_2:
+            if b_1 <= b_2:
                 # print('b_1 < b_2')
                 i_1 += 1
 
@@ -386,12 +441,8 @@ class Bounds:
 
         return self.intersect_bounds(Bounds.from_interval(interval))
 
-    # def __repr__(self) -> str:
-    #     lst = [b1 if b1 == b2 else (b1, b2) for (b1, b2) in self.get_bounds()]
-
-    #     if not UNICODE_OUT:
-    #         return str(lst)
-    #     return '[' + ' ∪ '.join(map(str, lst)) + '9]'
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def __str__(self):
         if not UNICODE_OUT:

@@ -37,8 +37,8 @@ class VarData:
             else:
                 a20, a21 = arg2[0], arg2[1]
                 if a20 is not None and a21 is not None:
-                    assert a20 < a21, (
-                        f'Bounds {arg2} in line are invalid: min > max ({a20}<{a21})!'
+                    assert a20 <= a21, (
+                         f'Bounds {arg2} in line are invalid: min > max ({a20}<{a21})!'
                     )
                 bounds = Bounds(((arg2,)))
 

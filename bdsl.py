@@ -6,7 +6,7 @@ import sys
 from warnings import warn
 from typing import Callable
 
-from bounds import Bounds, IntOrFloat, Interval, IntervalPoint
+from bounds import Bounds, IntOrFloat, Interval, IntervalPoint, split_interval
 from examples.errors import VariableNotDefinedError
 import lexer
 from colors import c
@@ -37,25 +37,21 @@ split_cond_stack: list[Conditions] = []
 functions: dict[str, FunctionData | BuiltinFunction] = {}
 
 
-def collapse_expr(
-    opvars: list[Interval],
-    opops: list[str]
-):
+def collapse_expr(opvars: list[Bounds], opops: list[str]):
+    # print(f'operating on {opvars} with {opops}')
     ops = {
         '+': lambda x, y: x.value + y.value,
         '-': lambda x, y: x.value - y.value,
         '*': lambda x, y: x.value * y.value,
     }
-    while len(opops) > 0:
-        op = opops.pop(0)
-        assert op in lexer.OPS, f'Operator {op} not implemented'
 
-        r1 = opvars.pop(0)
-        r2 = opvars.pop(0)
+    def __collapse_expr_interval(r1: Interval, r2: Interval, op: str):
+
         r10, r11 = r1[0], r1[1]
         r20, r21 = r2[0], r2[1]
         min_in = False
         max_in = False
+        zero_exclude = False
         if op == '/':
             if r10 is None or r21 is None:
                 r_min = None
@@ -70,20 +66,23 @@ def collapse_expr(
             else:
                 r_max = r11.value / r20.value
                 max_in = r11.is_included and r20.is_included
+
+            zero_exclude = r_min is None or (r_min < 0 and (r_max is None or r_max > 0))
+
         else:
-            op = ops[op]
+            opf = ops[op]
             if r10 is None or r20 is None:
                 r_min = None
                 # min_in = False
             else:
-                r_min = op(r10, r20)
+                r_min = opf(r10, r20)
                 min_in = r10.is_included and r20.is_included
 
             if r11 is None or r21 is None:
                 r_max = None
                 # max_in = False
             else:
-                r_max = op(r11, r21)
+                r_max = opf(r11, r21)
                 max_in = r11.is_included and r21.is_included
 
             if r_min is not None and r_max is not None:
@@ -96,7 +95,42 @@ def collapse_expr(
             r_min = IntervalPoint(r_min, min_in)
         if r_max is not None:
             r_max = IntervalPoint(r_max, max_in)
-        opvars.append(Interval(r_min, r_max))
+
+        return Interval(r_min, r_max), zero_exclude
+
+    while len(opops) > 0:
+        op = opops.pop(0)
+        assert op in lexer.OPS, f'Operator {op} not implemented'
+
+        b1 = opvars.pop(0)
+        b2 = opvars.pop(0)
+
+        bbs: Bounds | None = None
+        # print(f'b1: {b1}, b2: {b2}')
+        for rs1_i in b1.get_bounds():
+            for rs2_i in b2.get_bounds():
+
+                result_ij, zero_exclude = __collapse_expr_interval(rs1_i, rs2_i, op)
+
+                if zero_exclude:
+                    i1, i2 = split_interval(result_ij, IntervalPoint(0, False))
+                    if i1 and i2:
+                        result_ij = Bounds.from_list([i1, i2])
+                    elif i1:
+                        result_ij = Bounds.from_interval(i1)
+                    else:
+                        assert i2
+                        result_ij = Bounds.from_interval(i2)
+                else:
+                    result_ij = Bounds.from_interval(result_ij)
+                if bbs is None:
+                    bbs = result_ij
+                else:
+                    bbs.union_bounds(result_ij)
+                # print(f'bbs: {bbs}')
+
+        assert bbs
+        opvars.append(bbs)
     return opvars[0]
 
 
@@ -177,18 +211,17 @@ def calc_bounds(
     assert len(opvars) == len(opops) + 1, \
         f'Expression {vardata} malformed'
 
-    varlist = []
+    varlist: list[Bounds] = []
     for op in opvars:
         if isinstance(op, IntervalPoint):
-            varlist.append((op, op))
+            varlist.append(Bounds(((op, op),)))
         else:
             bds = calc_bounds(op, context, program_data, opts)
             if bds is None:
                 return None
-            varlist.extend(bds.get_bounds())
+            varlist.append(bds)
 
-    result = collapse_expr(varlist, opops)
-    return Bounds.from_interval(result)
+    return collapse_expr(varlist, opops)
 
 
 def print_vars(context: VarContext):
@@ -719,7 +752,6 @@ def main():
     code = []
     try:
         filenum = int(filename_arg)
-        print('filenum:', filenum)
         files = glob.glob('examples/*')
 
         for f in files:
