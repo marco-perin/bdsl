@@ -638,6 +638,7 @@ def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
                         )
                         comp_context[v_name].expr = None
                 curr_context = merge_contexts(curr_context, comp_context, split_cond)
+                context_stack[-1] = curr_context
                 break
             elif token_type == lexer.TOKEN_SIZE:
                 size = rest[0]
