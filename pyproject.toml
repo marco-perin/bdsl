@@ -1,7 +1,7 @@
 [project]
 name = "bdsl"
 description = "A very simple programming language, aiming to provide guarantees on variables bounds."
-version = "0.1.0"
+version = "0.2.0"
 readme = "README.md"
 license = { file = "LICENSE" }
 
