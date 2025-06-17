@@ -63,7 +63,7 @@ OP_RE = rf'^([{OPS_RE}])$'
 RANGE_RE = r'^(?P<min_in>\.?)(?P<min>-?[0-9]*)\.\.(?P<max>-?[0-9]*)(?P<max_in>\.?)$'
 COND_RE = rf'[ ]?({CONDS_RE})[ ]?$'
 CMD_RE = r'^(\?\?|>>|--)[ ]?$'
-NUM_RE = r'^(-?[0-9]+)$'
+NUM_RE = r'^(-?[0-9]+(.[0-9]+)?)$'
 SIZE_RE = r'^\((?P<size>[0-9,]*)\)$'
 QUEST_RE = r'^\?(?P<mod>f|v|a)?$'
 
