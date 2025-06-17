@@ -27,17 +27,17 @@ def test_intersection():
         tup2interval((2, 9))
     ).get_bounds() == (tup2interval((2, 3)), tup2interval((4, 5)), tup2interval((8, 9)))
 
-    assert Bounds.from_num_tuples(((1, 3), (4, 5), (8, 10), (11, 20))).intersect_interval(
-        tup2interval((2, 9))
-    ).get_bounds() == (
+    assert Bounds.from_num_tuples(
+        ((1, 3), (4, 5), (8, 10), (11, 20))
+    ).intersect_interval(tup2interval((2, 9))).get_bounds() == (
         tup2interval((2, 3)),
         tup2interval((4, 5)),
         tup2interval((8, 9)),
     )
 
-    assert Bounds.from_num_tuples(((1, 3), (4, 6), (8, 10), (11, 20))).intersect_interval(
-        tup2interval((5, 9))
-    ).get_bounds() == (
+    assert Bounds.from_num_tuples(
+        ((1, 3), (4, 6), (8, 10), (11, 20))
+    ).intersect_interval(tup2interval((5, 9))).get_bounds() == (
         tup2interval((5, 6)),
         tup2interval((8, 9)),
     )
@@ -139,16 +139,18 @@ def test_intersections_none():
 def test_union_interval():
     """Test union of intervals"""
 
-    assert Bounds.from_num_tuples(((1, 2),)).union_interval(tup2interval((2, 3))).get_bounds() == (
-        (1, 3),
-    )
-    assert Bounds.from_num_tuples(((1, 2),)).union_interval(tup2interval((3, 4))).get_bounds() == (
+    assert Bounds.from_num_tuples(((1, 2),)).union_interval(
+        tup2interval((2, 3))
+    ).get_bounds() == ((1, 3),)
+    assert Bounds.from_num_tuples(((1, 2),)).union_interval(
+        tup2interval((3, 4))
+    ).get_bounds() == (
         (1, 2),
         (3, 4),
     )
-    assert Bounds.from_num_tuples(((1, 3),)).union_interval(tup2interval((2, 4))).get_bounds() == (
-        (1, 4),
-    )
+    assert Bounds.from_num_tuples(((1, 3),)).union_interval(
+        tup2interval((2, 4))
+    ).get_bounds() == ((1, 4),)
     assert Bounds.from_num_tuples(((1, 3), (7, 10))).union_interval(
         tup2interval((4, 6))
     ).get_bounds() == ((1, 3), (4, 6), (7, 10))

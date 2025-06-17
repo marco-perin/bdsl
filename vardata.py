@@ -15,7 +15,9 @@ class VarData:
     expr: list[str] | None = None
 
     @classmethod
-    def auto(cls, name: str, arg2: Bounds | Interval | list[str] | None, size: str | None):
+    def auto(
+        cls, name: str, arg2: Bounds | Interval | list[str] | None, size: str | None
+    ):
 
         size_i: int | None = 1 if size is None else int(size)
         if arg2 is None:

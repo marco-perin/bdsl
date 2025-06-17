@@ -1,14 +1,9 @@
-
 from abc import abstractmethod
 from dataclasses import dataclass
 from math import sqrt
 from typing import Dict
 
-from bounds import (
-    Bounds, IntOrFloat,
-    Interval, IntervalPoint,
-    f_apply, split_interval
-)
+from bounds import Bounds, IntOrFloat, Interval, IntervalPoint, f_apply, split_interval
 from vardata import VarData
 
 
@@ -30,10 +25,7 @@ type Conditions = Dict[str, Bounds]
 builtinFunctions: list['BuiltinFunction'] = []
 
 
-def populate_builtin_fcns(
-        functions: dict[str,
-                        'FunctionData | BuiltinFunction'
-                        ]):
+def populate_builtin_fcns(functions: dict[str, 'FunctionData | BuiltinFunction']):
     for f in builtinFunctions:
         functions[f.name] = f
 
@@ -43,6 +35,7 @@ class ProgramData:
     """
     Data class to hold program execution context information
     """
+
     filename: str
     # args: List[str] = None
 
@@ -58,6 +51,7 @@ class InterpreterContext:
     """
     Data class to hold the current interpreter context
     """
+
     @dataclass
     class LineData:
         line_txt: str
@@ -95,6 +89,7 @@ class FunctionData:
 
 class BuiltinFunction(FunctionData):
     """Builtin functions. evaluates directly"""
+
     _builtin = True
 
     @abstractmethod
@@ -125,7 +120,7 @@ builtinFunctions.append(SqrtFunction())
 
 
 def split_context(
-        context: VarContext, conds: Conditions
+    context: VarContext, conds: Conditions
 ) -> tuple[VarContext, VarContext]:
 
     filter_context: VarContext = {}
@@ -159,9 +154,7 @@ def split_context(
 
 
 def merge_contexts(
-        curr_context: VarContext,
-        comp_context: VarContext,
-        split_cond: Conditions
+    curr_context: VarContext, comp_context: VarContext, split_cond: Conditions
 ) -> VarContext:
     res = curr_context.copy()
 
@@ -170,12 +163,12 @@ def merge_contexts(
             curr_var = res[c_var_name]
 
             # print('curr_context:', curr_context)
-            assert curr_var.bounds is not None, \
-                f'Variable {c_var_name} bounds are None'
+            assert curr_var.bounds is not None, f'Variable {c_var_name} bounds are None'
 
             comp_bounds = comp_context[c_var_name].bounds
-            assert comp_bounds is not None, \
-                f'Variable {c_var_name} bounds are None in compl. bounds'
+            assert (
+                comp_bounds is not None
+            ), f'Variable {c_var_name} bounds are None in compl. bounds'
 
             # print('curr_var:', curr_var)
             # print('curr_bounds:', curr_var.bounds)

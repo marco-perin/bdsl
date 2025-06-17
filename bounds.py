@@ -15,7 +15,9 @@ class IntervalPoint:
         if other is None:
             return self is None
         if isinstance(other, IntervalPoint):
-            return (self.value == other.value) and ((self.is_included) == (other.is_included))
+            return (self.value == other.value) and (
+                (self.is_included) == (other.is_included)
+            )
         if isinstance(other, type(self)):
             return self.value == other
         return self.value == other
@@ -120,7 +122,9 @@ def invert_interval(b: Interval) -> list[Interval]:
     return [Interval(None, b[0]), Interval(b[1], None)]
 
 
-def split_interval(i: Interval, x: IntervalPoint) -> tuple[Interval | None, Interval | None]:
+def split_interval(
+    i: Interval, x: IntervalPoint
+) -> tuple[Interval | None, Interval | None]:
     """Splits an interval at point x in two intervals"""
     i0, i1 = i
 
@@ -165,7 +169,9 @@ class Bounds:
 
     def __init__(
         self,
-        bounds: Tuple[Interval | tuple[IntervalPoint | None, IntervalPoint | None], ...],
+        bounds: Tuple[
+            Interval | tuple[IntervalPoint | None, IntervalPoint | None], ...
+        ],
     ) -> None:
 
         # Maybe this could be translated to (None, None) ?
@@ -210,7 +216,9 @@ class Bounds:
         )
 
     @classmethod
-    def from_interval(cls, interval: Interval | tuple[IntervalPoint | None, IntervalPoint | None]):
+    def from_interval(
+        cls, interval: Interval | tuple[IntervalPoint | None, IntervalPoint | None]
+    ):
         if not isinstance(interval, Interval):
             interval = Interval(*interval)
         return cls((interval,))
@@ -229,7 +237,8 @@ class Bounds:
         """Returns a tuple of intervals"""
         try:
             return tuple(
-                Interval(self.__list[i], self.__list[i + 1]) for i in range(0, len(self.__list), 2)
+                Interval(self.__list[i], self.__list[i + 1])
+                for i in range(0, len(self.__list), 2)
             )
         except IndexError:
             assert False, f'Invalid bounds: {self.__list}'
@@ -284,8 +293,18 @@ class Bounds:
             b_2 = bds_2[i_2]
             # print(f'new_bds {i_1}-{i_2}:', new_bds)
             # print(f'-- {i_1} {i_2}')
-            # print("bds_1: ", '-' if tracing_1 else ' ', bds_1[i_1])
-            # print("bds_1: ", '-' if tracing_2 else ' ', bds_2[i_2])
+            # print(
+            #     'bds_1: ',
+            #     '--' if tracing_1 else ' ',
+            #     b_1,
+            #     ')' if not b_1.is_included else ']',
+            # )
+            # print(
+            #     'bds_2: ',
+            #     '--' if tracing_2 else ' ',
+            #     b_2,
+            #     ')' if not b_2.is_included else ']',
+            # )
 
             if b_1 is None or b_2 is None:
                 new_bds.append(None)
@@ -298,14 +317,18 @@ class Bounds:
 
                 if not tracing_2:
                     # Add point if not between two intervals
-                    b_1.is_included = b_1.is_included or b_1.is_included != b_2.is_included
+                    b_1.is_included = (
+                        b_1.is_included or b_1.is_included != b_2.is_included
+                    )
                     new_bds.append(b_1)
                 tracing_1 = not tracing_1
             else:
                 i_2 += 1
                 if not tracing_1:
                     # Add point if not between two intervals
-                    b_2.is_included = b_2.is_included or b_1.is_included != b_2.is_included
+                    b_2.is_included = (
+                        b_2.is_included or b_1.is_included != b_2.is_included
+                    )
 
                     new_bds.append(b_2)
                 tracing_2 = not tracing_2
@@ -332,6 +355,25 @@ class Bounds:
 
             b1, b2 = new_bds[i], new_bds[i + 1]
 
+            # if isinstance(b1, IntervalPoint):
+            #     b1d = ')' if not b1.is_included else ']'
+            # else:
+            #     b1d = ';'
+            # if isinstance(b2, IntervalPoint):
+            #     b2d = ')' if not b2.is_included else ']'
+            # else:
+            #     b2d = ';'
+
+            # print(
+            #     'test_eq: ',
+            #     b1,
+            #     b1d,
+            #     # ')' if not b1.is_included else ']',
+            #     b2,
+            #     b2d,
+            #     # ')' if not b2.is_included else ']',
+            #     b1 == b2,
+            # )
 
             def pop(i, b_prev: IntervalPoint | None = None):
                 if (
@@ -467,19 +509,25 @@ class Bounds:
 
 def main():
 
-    b = Bounds((
-        Interval(None,             IntervalPoint(1)),
-        Interval(IntervalPoint(2), IntervalPoint(3)),
-        Interval(IntervalPoint(4), None),
-    ))
+    b = Bounds(
+        (
+            Interval(None, IntervalPoint(1)),
+            Interval(IntervalPoint(2), IntervalPoint(3)),
+            Interval(IntervalPoint(4), None),
+        )
+    )
     print('bound', b)
     # b = Bounds(((0, 2), (4, 6), (8, 10)))
     # i_union = (1, 3)
     # i_union = (3, 7)
     # i_union = Bounds.from_interval((IntervalPoint(0), IntervalPoint(1.5)))
     # i_union = Bounds.from_interval((IntervalPoint(2.5), None))
-    i_union = Bounds((Interval(IntervalPoint(0), IntervalPoint(0.5)),
-                      Interval(IntervalPoint(2.5), None)))
+    i_union = Bounds(
+        (
+            Interval(IntervalPoint(0), IntervalPoint(0.5)),
+            Interval(IntervalPoint(2.5), None),
+        )
+    )
     # i_union = (IntervalPoint(0), IntervalPoint(1.5))
     # print('origin:', b, 'U', i_union)
 
