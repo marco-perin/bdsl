@@ -50,33 +50,38 @@ class Interval(tuple[IntervalPoint | None, IntervalPoint | None]):
     def __new__(cls, first: IntervalPoint | None, second: IntervalPoint | None) -> Self:
         return super().__new__(cls, (first, second))
 
-    def get_braces(self) -> Tuple[Literal['('] | Literal['['], Literal[')'] | Literal[']']]:
+    def get_braces(
+        self,
+    ) -> Tuple[Literal['('] | Literal['['], Literal[')'] | Literal[']']]:
         s0, s1 = self
         return (
             '(' if (s0 is None or (not s0.is_included)) else '[',
-            ')' if (s1 is None or (not s1.is_included)) else ']'
+            ')' if (s1 is None or (not s1.is_included)) else ']',
         )
 
     def __repr__(self) -> str:
         b1, b2 = self.get_braces()
-        return f"{b1}{self[0]!r}, {self[1]!r}{b2}"
+        return f'{b1}{self[0]!r}, {self[1]!r}{b2}'
 
     def __str__(self) -> str:
         b1, b2 = self.get_braces()
-        return f"{b1}{self[0]!r}, {self[1]!r}{b2}"
-        # return f"({self[0]}, {self[1]})"
+        return f'{b1}{self[0]!r}, {self[1]!r}{b2}'
+        # return f'({self[0]}, {self[1]})'
 
 
-def tup2interval(tup: tuple[IntOrFloat | None, IntOrFloat | None], included: tuple[bool, bool] = (True, True)) -> Interval:
+def tup2interval(
+    tup: tuple[IntOrFloat | None, IntOrFloat | None],
+    included: tuple[bool, bool] = (True, True),
+) -> Interval:
     v1 = None if tup[0] is None else IntervalPoint(tup[0], included[0])
     v2 = None if tup[1] is None else IntervalPoint(tup[1], included[1])
     return Interval(v1, v2)
 
 
 def f_intersect(
-        f: Callable[[IntervalPoint, IntervalPoint], IntervalPoint],
-        x: IntervalPoint | None,
-        y: IntervalPoint | None
+    f: Callable[[IntervalPoint, IntervalPoint], IntervalPoint],
+    x: IntervalPoint | None,
+    y: IntervalPoint | None,
 ) -> IntervalPoint | None:
     """Returns None only if both x and y are None"""
     if x is None or y is None:
@@ -86,11 +91,7 @@ def f_intersect(
     return f(x, y)
 
 
-def f_apply(
-    f: Callable[[IntervalPoint], IntervalPoint],
-    i: Interval,
-    invert: bool
-):
+def f_apply(f: Callable[[IntervalPoint], IntervalPoint], i: Interval, invert: bool):
     i0, i1 = i
 
     if i0:
@@ -104,8 +105,8 @@ def f_apply(
 
 
 def interval_intersect(b1: Interval, b2: Interval) -> Interval:
-    b_min = f_intersect(min,  b1[0], b2[0])
-    b_max = f_intersect(max,  b1[1], b2[1])
+    b_min = f_intersect(min, b1[0], b2[0])
+    b_max = f_intersect(max, b1[1], b2[1])
     return Interval(b_min, b_max)
 
 
@@ -162,17 +163,17 @@ def nInInterval(n: IntervalPoint, interval: Interval) -> bool:
 class Bounds:
     __list: list[IntervalPoint | None]
 
-    def __init__(self, bounds: Tuple[Interval | tuple[IntervalPoint | None, IntervalPoint | None], ...]) -> None:
+    def __init__(
+        self,
+        bounds: Tuple[Interval | tuple[IntervalPoint | None, IntervalPoint | None], ...],
+    ) -> None:
 
         # Maybe this could be translated to (None, None) ?
         assert len(bounds) > 0, 'Empty bounds'
         # Redundant?
         assert all(len(interval) == 2 for interval in bounds), 'Invalid bounds'
 
-        _bounds = [
-            b if isinstance(b, Interval) else Interval(*b)
-            for b in bounds
-        ]
+        _bounds = [b if isinstance(b, Interval) else Interval(*b) for b in bounds]
         self.__set_list(_bounds)
 
     def __eq__(self, other: object) -> bool:
@@ -194,17 +195,19 @@ class Bounds:
 
     @classmethod
     def from_num_tuples(
-            cls,
-            interval: tuple[tuple[IntOrFloat | None, IntOrFloat | None], ...],
-            included: bool = True
+        cls,
+        interval: tuple[tuple[IntOrFloat | None, IntOrFloat | None], ...],
+        included: bool = True,
     ):
-        return cls(tuple(
-            Interval(
-                None if l_b is None else IntervalPoint(l_b, included),
-                None if u_b is None else IntervalPoint(u_b, included),
+        return cls(
+            tuple(
+                Interval(
+                    None if l_b is None else IntervalPoint(l_b, included),
+                    None if u_b is None else IntervalPoint(u_b, included),
+                )
+                for l_b, u_b in interval
             )
-            for l_b, u_b in interval
-        ))
+        )
 
     @classmethod
     def from_interval(cls, interval: Interval | tuple[IntervalPoint | None, IntervalPoint | None]):
@@ -226,8 +229,7 @@ class Bounds:
         """Returns a tuple of intervals"""
         try:
             return tuple(
-                Interval(self.__list[i], self.__list[i + 1])
-                for i in range(0, len(self.__list), 2)
+                Interval(self.__list[i], self.__list[i + 1]) for i in range(0, len(self.__list), 2)
             )
         except IndexError:
             assert False, f'Invalid bounds: {self.__list}'
@@ -290,17 +292,18 @@ class Bounds:
                 break
             assert b_1 is not None and b_2 is not None, 'Unreachable'
 
+            # print('test: ', b_1, b_1.is_included, b_2, b_2.is_included, '->', b_1 <= b_2)
             if b_1 <= b_2:
                 i_1 += 1
 
-                if (not tracing_2):
+                if not tracing_2:
                     # Add point if not between two intervals
                     b_1.is_included = b_1.is_included or b_1.is_included != b_2.is_included
                     new_bds.append(b_1)
                 tracing_1 = not tracing_1
             else:
                 i_2 += 1
-                if (not tracing_1):
+                if not tracing_1:
                     # Add point if not between two intervals
                     b_2.is_included = b_2.is_included or b_1.is_included != b_2.is_included
 
@@ -309,12 +312,20 @@ class Bounds:
 
             # print('new_bds:', new_bds)
 
+            # print(
+            #     'new_bds:',
+            #     [f'{b} {')' if not b.is_included else ']'}' for b in new_bds],
+            # )
         if len(new_bds) == 1 or new_bds[-1] is not None:
             if i_1 < len(bds_1):
                 new_bds.extend(bds_1[i_1:])
             elif i_2 < len(bds_2):
                 new_bds.extend(bds_2[i_2:])
 
+        # print(
+        #     'new_bds pre_sanit:',
+        #     [f'{b} {')' if not b.is_included else ']'}' for b in new_bds],
+        # )
         # Sanitize - remove overlapping bounds
         i = len(new_bds) - 2
         while i > 0:
@@ -397,8 +408,8 @@ class Bounds:
             b_2 = bds_2[i_2]
             # print(f'new_bds {i_1}-{i_2}:', new_bds)
             # print(f'-- {i_1} {i_2}')
-            # print("bds_1: ", '-' if tracing_1 else ' ', b_1)
-            # print("bds_2: ", '-' if tracing_2 else ' ', b_2)
+            # print('bds_1: ', '-' if tracing_1 else ' ', b_1)
+            # print('bds_2: ', '-' if tracing_2 else ' ', b_2)
 
             if b_1 is None and b_2 is None:
                 new_bds.append(None)
@@ -436,7 +447,9 @@ class Bounds:
         self.__list = new_bds
         return self
 
-    def intersect_interval(self, interval: Interval | tuple[IntervalPoint | None, IntervalPoint | None]):
+    def intersect_interval(
+        self, interval: Interval | tuple[IntervalPoint | None, IntervalPoint | None]
+    ):
         """Intersection of bounds with an interval"""
 
         return self.intersect_bounds(Bounds.from_interval(interval))

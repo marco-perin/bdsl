@@ -21,14 +21,10 @@ from bdsl_types import (
     merge_contexts,
     numOrNone,
     populate_builtin_fcns,
-    split_context
+    split_context,
 )
 
-from configuration import (
-    UNICODE_OUT,
-    VERBOSE,
-    WARN_IF_NONE
-)
+from configuration import UNICODE_OUT, VERBOSE, WARN_IF_NONE
 
 
 context_stack: list[VarContext] = []
@@ -135,9 +131,7 @@ def collapse_expr(opvars: list[Bounds], opops: list[str]):
 
 
 def calc_bounds(
-    v_name: str, context: VarContext,
-    program_data: ProgramData,
-    opts: 'Opts'
+    v_name: str, context: VarContext, program_data: ProgramData, opts: 'Opts'
 ) -> Bounds | None:
     """Calculate bounds for variable v_name from given context"""
     assert v_name in context, f'Variable {v_name} not defined'
@@ -160,7 +154,7 @@ def calc_bounds(
         fn_name = rest[0]
         func = functions[fn_name]
         args = rest[1].split(',')
-        assert len(args) == len(func.args), "Wrong number of arguments"
+        assert len(args) == len(func.args), 'Wrong number of arguments'
 
         return evaluate_func(func, args, context, program_data, opts)
 
@@ -169,10 +163,12 @@ def calc_bounds(
     if len(expr) == 2:
         l_v = numOrNone(expr[0])
         u_v = numOrNone(expr[1])
-        return Bounds.from_interval(Interval(
-            IntervalPoint(l_v) if l_v is not None else None,
-            IntervalPoint(u_v) if u_v is not None else None
-        ))
+        return Bounds.from_interval(
+            Interval(
+                IntervalPoint(l_v) if l_v is not None else None,
+                IntervalPoint(u_v) if u_v is not None else None,
+            )
+        )
 
     opvars = list[str | IntervalPoint]()
     opops = []
@@ -184,8 +180,7 @@ def calc_bounds(
             assert match_groups is not None
             opvars.append(match_groups[0])
             for g in match_groups[1:]:
-                assert g == '', \
-                    f'Variable {e} cannot have modifiers in expression'
+                assert g == '', f'Variable {e} cannot have modifiers in expression'
             continue
 
         # match_op = re.match(OP_RE, e)
@@ -205,11 +200,9 @@ def calc_bounds(
             #         f'Variable {e} cannot have modifiers in expression'
             continue
 
-        assert False, \
-            f'Token {e} in expression {vardata} not implemented'
+        assert False, f'Token {e} in expression {vardata} not implemented'
 
-    assert len(opvars) == len(opops) + 1, \
-        f'Expression {vardata} malformed'
+    assert len(opvars) == len(opops) + 1, f'Expression {vardata} malformed'
 
     varlist: list[Bounds] = []
     for op in opvars:
@@ -227,7 +220,7 @@ def calc_bounds(
 def print_vars(context: VarContext):
     print(c.YELLOW('vars:'))
     for v in context:
-        print(f"\t{context[v]}")
+        print(f'\t{context[v]}')
         # print(vardict)
 
 
@@ -239,8 +232,7 @@ def print_fcns(opts: 'Opts'):
         assert body
 
         if opts.verbose == 0:
-            print(
-                f'\t{c.GREEN(f.name)}, args: {f.args}, body_count: {len(body)}')
+            print(f'\t{c.GREEN(f.name)}, args: {f.args}, body_count: {len(body)}')
         else:
             print(f'   {c.GREEN(f.name)} ({', '.join(f.args)})')
             # print('  body:')
@@ -250,8 +242,7 @@ def print_fcns(opts: 'Opts'):
 
 def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool, program_data, opts) -> Bounds:
     curr_context = context_stack[-1]
-    assert not (isinstance(x, str) and isinstance(y, str)), \
-        f'Cannot compare vars rn {x} == {y}'
+    assert not (isinstance(x, str) and isinstance(y, str)), f'Cannot compare vars rn {x} == {y}'
 
     if isinstance(x, str):
         assert not isinstance(y, str)
@@ -273,8 +264,9 @@ def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool, program_data, opts) -
 
 def eq(x: IntOrFloat | str, y: IntOrFloat | str) -> Bounds:
     curr_context = context_stack[-1]
-    assert not (isinstance(x, str) and isinstance(y, str)), \
-        f'Operator "==" not implemented for two vars ({x} == {y}) atm'
+    assert not (
+        isinstance(x, str) and isinstance(y, str)
+    ), f'Operator "==" not implemented for two vars ({x} == {y}) atm'
 
     if isinstance(x, str):
         var = curr_context[x]
@@ -335,8 +327,7 @@ def get_cond(vals: list[IntOrFloat | str], cond: str, program_data, opts) -> Bou
 
 
 def pase_condition(
-        tokens: list[str], context: VarContext,
-        program_data: ProgramData, opts: 'Opts'
+    tokens: list[str], context: VarContext, program_data: ProgramData, opts: 'Opts'
 ) -> Conditions:
     assert len(tokens) > 0, 'No tokens to parse'
     assert len(tokens) % 3 == 0, f'Condition {tokens} malformed'
@@ -381,11 +372,12 @@ def pase_condition(
 
 def print_var_msg(
     varname: str,
-    line: str, line_num: int,
+    line: str,
+    line_num: int,
     curr_context: VarContext,
     interpreter_context: InterpreterContext,
     program_data: ProgramData,
-    opts: 'Opts'
+    opts: 'Opts',
 ):
 
     if varname not in curr_context:
@@ -393,14 +385,13 @@ def print_var_msg(
             varname,
             line_num,
             interpreter_context=interpreter_context,
-            colno=line.find(varname)+1
+            colno=line.find(varname) + 1,
         )
     header = c.FAINT(f'{line_num:03}')
     bounds = calc_bounds(varname, curr_context, program_data, opts)
 
     if opts.verbose > 0:
-        endl = c.FAINT(
-            f' [{line.strip().removesuffix('\n')}]')
+        endl = c.FAINT(f' [{line.strip().removesuffix('\n')}]')
         if opts.verbose > 1:
             header = c.FAINT(f'{program_data.filename}:{line_num:03}')
     else:
@@ -418,7 +409,7 @@ def evaluate_func(
     args: list[str],
     context: VarContext,
     program_data: ProgramData,
-    opts: 'Opts'
+    opts: 'Opts',
 ) -> Bounds | None:
 
     if func.is_builtin:
@@ -426,12 +417,7 @@ def evaluate_func(
         interval = context_stack[-1][args[0]].bounds
         assert interval
 
-        res_mixed = [
-            i for i in
-            (func.eval(i) for i in interval.get_bounds()
-             )
-            if i is not None
-        ]
+        res_mixed = [i for i in (func.eval(i) for i in interval.get_bounds()) if i is not None]
         i = 0
         if len(res_mixed) == 0:
             return None
@@ -442,7 +428,7 @@ def evaluate_func(
 
         return res
 
-    assert func.body, f"Function {func.name} has no body!"
+    assert func.body, f'Function {func.name} has no body!'
 
     func_context: VarContext = {}
     for f_arg, arg in zip(func.args, args):
@@ -469,19 +455,12 @@ def get_tokens(line: str):
     return line.split()
 
 
-def exec_code(
-    code: list[str],
-    program_data: ProgramData,
-    opts: 'Opts'
-):
+def exec_code(code: list[str], program_data: ProgramData, opts: 'Opts'):
 
     if len(context_stack) == 0:
         context_stack.append({})
 
-    interpreter_context = InterpreterContext(
-        program_data,
-        curr_line=None
-    )
+    interpreter_context = InterpreterContext(program_data, curr_line=None)
 
     curr_context = context_stack[-1]
     mods = None
@@ -502,7 +481,7 @@ def exec_code(
                 print('token:', (token, lexer.token_names[token_type], rest))
 
             if token_type == lexer.TOKEN_COMMENT:
-                comm_text = ' '.join([*rest, *tokens[ti+1:]])
+                comm_text = ' '.join([*rest, *tokens[ti + 1 :]])
                 if VERBOSE:
                     print('comment:', comm_text)
                 break
@@ -521,7 +500,7 @@ def exec_code(
 
             if token_type == lexer.TOKEN_FN_DEF:
                 assert fn_name is None, 'Nested functions not supported atm'
-                rest = ''.join(tokens[ti+1:])
+                rest = ''.join(tokens[ti + 1 :])
                 fn_name, rest = rest.split('(', 1)
                 args = rest.removesuffix(')').split(',')
                 functions[fn_name] = FunctionData(fn_name, args)
@@ -533,7 +512,7 @@ def exec_code(
             if token_type == lexer.TOKEN_FN_RET:
                 # Assign return variable with magic name to get it
                 #   from context
-                curr_context['!var_result'] = curr_context[tokens[ti+1]]
+                curr_context['!var_result'] = curr_context[tokens[ti + 1]]
                 return
 
             if token_type == lexer.TOKEN_VAR:
@@ -542,9 +521,12 @@ def exec_code(
                 if '?' in mods:
                     print_var_msg(
                         varname,
-                        line, line_num,
-                        curr_context, interpreter_context,
-                        program_data, opts
+                        line,
+                        line_num,
+                        curr_context,
+                        interpreter_context,
+                        program_data,
+                        opts,
                     )
 
             elif token_type == lexer.TOKEN_RANGE:
@@ -560,14 +542,14 @@ def exec_code(
                     b_u = IntervalPoint(b_u, b_u_in)
                 rest_line = Interval(b_l, b_u)
             elif token_type == lexer.TOKEN_ASSIGN:
-                rest_line = tokens[ti+1:]
+                rest_line = tokens[ti + 1 :]
                 assert isinstance(varname, str)
                 if VERBOSE:
                     print('assign:', rest_line)
-                match_n, rest = lexer.match_token(tokens[ti+1], lexer.NUM_RE)
+                match_n, rest = lexer.match_token(tokens[ti + 1], lexer.NUM_RE)
                 if match_n:
                     # print('NUM:', tokens[ti+1:])
-                    val = numOrNone(tokens[ti+1])
+                    val = numOrNone(tokens[ti + 1])
                     if val is not None:
                         val = IntervalPoint(val)
                     rest_line = Interval(val, val)
@@ -588,23 +570,26 @@ def exec_code(
 
                 break
             # elif token_type == TOKEN_COND:
-                # if VERBOSE:
-                #     print('COND: ', tokens[ti+1:])
-                # break
+            # if VERBOSE:
+            #     print('COND: ', tokens[ti+1:])
+            # break
             elif token_type == lexer.TOKEN_IF:
                 if VERBOSE:
-                    print('IF: ', tokens[ti+1:])
+                    print('IF: ', tokens[ti + 1 :])
 
                 cond: Conditions = pase_condition(
-                    tokens[ti+1:], curr_context, program_data, opts)
+                    tokens[ti + 1 :], curr_context, program_data, opts
+                )
                 # print('cond:', cond)
                 # context_stack.append(curr_context.copy())
                 for v_name in cond:
-                    assert v_name in curr_context, f'Variable {
+                    assert (
+                        v_name in curr_context
+                    ), f'Variable {
                         v_name} not defined'
                     curr_context[v_name].bounds = calc_bounds(
-                        v_name, curr_context,
-                        program_data, opts)
+                        v_name, curr_context, program_data, opts
+                    )
                     curr_context[v_name].expr = None
                 ctx, compl = split_context(curr_context, cond)
                 other_context_stack.append(compl)
@@ -614,7 +599,7 @@ def exec_code(
                 break
             elif token_type == lexer.TOKEN_ELSE:
                 if VERBOSE:
-                    print('ELSE: ', tokens[ti+1:])
+                    print('ELSE: ', tokens[ti + 1 :])
                 # Select complementary context
 
                 curr_context = other_context_stack[-1]
@@ -637,21 +622,23 @@ def exec_code(
                 for v_name in curr_context:
                     if curr_context[v_name].bounds is None:
                         curr_context[v_name].bounds = calc_bounds(
-                            v_name, curr_context, program_data, opts)
+                            v_name, curr_context, program_data, opts
+                        )
                         curr_context[v_name].expr = None
                 for v_name in comp_context:
                     if comp_context[v_name].bounds is None:
                         comp_context[v_name].bounds = calc_bounds(
-                            v_name, comp_context, program_data, opts)
+                            v_name, comp_context, program_data, opts
+                        )
                         comp_context[v_name].expr = None
-                curr_context = merge_contexts(
-                    curr_context, comp_context, split_cond
-                )
+                curr_context = merge_contexts(curr_context, comp_context, split_cond)
                 break
             elif token_type == lexer.TOKEN_SIZE:
                 size = rest[0]
             else:
-                assert False, f'Token "{
+                assert (
+                    False
+                ), f'Token "{
                     token}" ({lexer.token_names[token_type]}) not implemented'
 
         if varname is None:
@@ -663,15 +650,19 @@ def exec_code(
             continue
 
         if '!' in mods:
-            assert varname in curr_context, f'Variable {
+            assert (
+                varname in curr_context
+            ), f'Variable {
                 varname} not defined, cannot overwerite'
         else:
             if '.' in mods:
-                assert varname in curr_context, \
-                    f'Variable {varname} not defined, canno finalyze value'
+                assert (
+                    varname in curr_context
+                ), f'Variable {varname} not defined, canno finalyze value'
             else:
-                assert varname not in curr_context, \
-                    f'Variable {varname} already defined. Cannot redeclare'
+                assert (
+                    varname not in curr_context
+                ), f'Variable {varname} already defined. Cannot redeclare'
 
         if '.' in mods:
             bounds = calc_bounds(varname, curr_context, program_data, opts)
@@ -681,21 +672,21 @@ def exec_code(
 
 
 def print_usage():
-    print("Usage: python test.py [opts] <arg>")
+    print('Usage: python test.py [opts] <arg>')
     print()
-    print("  [opts] can be: ")
+    print('  [opts] can be: ')
     print()
-    print("    -v | --verbose to enable verbose mode.")
-    print("    -h | --help    to print this help message.")
+    print('    -v | --verbose to enable verbose mode.')
+    print('    -h | --help    to print this help message.')
     print()
-    print("  <arg> can be: ")
+    print('  <arg> can be: ')
     print()
-    print("    filename       to be executed.")
-    print("    file_number    in the examples to be executed.")
+    print('    filename       to be executed.')
+    print('    file_number    in the examples to be executed.')
     print()
 
 
-class Opts():
+class Opts:
     verbose: int = 0
 
     def parse_option(self, opt: str):
@@ -773,5 +764,5 @@ def main():
     sys.exit(0)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

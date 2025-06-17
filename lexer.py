@@ -1,4 +1,3 @@
-
 import re
 
 from bdsl_types import iota
@@ -43,8 +42,9 @@ token_names = [
     'FN_CALL',
 ]
 
-assert len(token_names) == TOKEN_MAX, \
-    f'Token names {token_names} do not match token count {TOKEN_MAX}'
+assert (
+    len(token_names) == TOKEN_MAX
+), f'Token names {token_names} do not match token count {TOKEN_MAX}'
 
 
 MODS = '!?.'
@@ -104,7 +104,7 @@ def get_token_type(tok: str):
     op_match = re.match(OP_RE, tok)
 
     if op_match:
-        return (TOKEN_OP, )
+        return (TOKEN_OP,)
 
     range_match = re.match(RANGE_RE, tok)
 

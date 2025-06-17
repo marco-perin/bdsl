@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 
 from bounds import Bounds, Interval
@@ -9,25 +8,23 @@ from colors import c
 @dataclass
 class VarData:
     """Holds data for a variable"""
+
     name: str
-    bounds: Bounds | None = Bounds(((None, None),))
+    bounds: Bounds | None
     size: int = 1
     expr: list[str] | None = None
 
     @classmethod
-    def auto(cls,
-             name: str,
-             arg2: Bounds | Interval | list[str] | None,
-             size: str | None
-             ):
+    def auto(cls, name: str, arg2: Bounds | Interval | list[str] | None, size: str | None):
 
         size_i: int | None = 1 if size is None else int(size)
         if arg2 is None:
             bounds = None
             expr = None
         elif isinstance(arg2, list):
-            assert all(isinstance(arg2i, str) for arg2i in arg2), \
-                f'Expression {arg2} must be a list of strings'
+            assert all(
+                isinstance(arg2i, str) for arg2i in arg2
+            ), f'Expression {arg2} must be a list of strings'
             expr = arg2
             bounds = None
         else:
@@ -37,9 +34,9 @@ class VarData:
             else:
                 a20, a21 = arg2[0], arg2[1]
                 if a20 is not None and a21 is not None:
-                    assert a20 <= a21, (
-                         f'Bounds {arg2} in line are invalid: min > max ({a20}<{a21})!'
-                    )
+                    assert (
+                        a20 <= a21
+                    ), f'Bounds {arg2} in line are invalid: min > max ({a20}<{a21})!'
                 bounds = Bounds(((arg2,)))
 
         return cls(name, bounds, size_i, expr)

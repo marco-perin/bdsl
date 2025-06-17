@@ -9,12 +9,13 @@ from bdsl_types import InterpreterContext
 class InterpreterError(Exception):
     '''Generic error for the bdsl interpreter.'''
 
-    def __init__(self,
-                 message: str,
-                 lineno: int,
-                 interpreter_context: InterpreterContext | None = None,
-                 cols: tuple[int, int] | None = None,
-                 ) -> None:
+    def __init__(
+        self,
+        message: str,
+        lineno: int,
+        interpreter_context: InterpreterContext | None = None,
+        cols: tuple[int, int] | None = None,
+    ) -> None:
         '''Initialize the error.
 
         Args:
@@ -32,12 +33,12 @@ class InterpreterError(Exception):
         # Format the error message with location information
         location = ''
         if interpreter_context is not None:
-            location += f"at {numcol(interpreter_context.program_data.filename)}, "
-        location += f"line {numcol(lineno)}"
+            location += f'at {numcol(interpreter_context.program_data.filename)}, '
+        location += f'line {numcol(lineno)}'
         if cols is not None:
-            location += f", column {numcol(cols[0])}"
+            location += f', column {numcol(cols[0])}'
 
-        full_message = f"{message} ({location})"
+        full_message = f'{message} ({location})'
 
         sys.exit(full_message)
 
@@ -50,16 +51,17 @@ class VarMessageException(InterpreterError):
         "{__class__.__name__}: {varname} (at {location})"
     '''
 
-    def __init__(self,
-                 varname: str,
-                 lineno: int,
-                 interpreter_context: InterpreterContext | None = None,
-                 colno: int | None = None,
-                 ) -> None:
+    def __init__(
+        self,
+        varname: str,
+        lineno: int,
+        interpreter_context: InterpreterContext | None = None,
+        colno: int | None = None,
+    ) -> None:
         message = self.get_message_format().format(varname=varname)
 
         if colno:
-            cols = (colno, colno+len(varname))
+            cols = (colno, colno + len(varname))
         else:
             cols = None
         super().__init__(message, lineno, interpreter_context, cols)
