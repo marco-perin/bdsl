@@ -174,9 +174,7 @@ def merge_contexts(
             # print('curr_bounds:', curr_var.bounds)
             # print('comp_bounds:', comp_bounds)
 
-            for i in comp_bounds.get_bounds():
-                # print('comp_bounds i:', i)
-                curr_var.bounds.union_interval(i)
+            curr_var.bounds.union_bounds(comp_bounds)
 
     return res
 
