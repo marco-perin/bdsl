@@ -241,13 +241,9 @@ def print_fcns(opts: 'Opts'):
                 print('\t' + line)
 
 
-def gt(
-    x: IntOrFloat | str, y: IntOrFloat | str, eq: bool, program_data, opts
-) -> Bounds:
+def gt(x: IntOrFloat | str, y: IntOrFloat | str, eq: bool, program_data, opts) -> Bounds:
     curr_context = context_stack[-1]
-    assert not (
-        isinstance(x, str) and isinstance(y, str)
-    ), f'Cannot compare vars rn {x} == {y}'
+    assert not (isinstance(x, str) and isinstance(y, str)), f'Cannot compare vars rn {x} == {y}'
 
     if isinstance(x, str):
         assert not isinstance(y, str)
@@ -422,9 +418,7 @@ def evaluate_func(
         interval = context_stack[-1][args[0]].bounds
         assert interval
 
-        res_mixed = [
-            i for i in (func.eval(i) for i in interval.get_bounds()) if i is not None
-        ]
+        res_mixed = [i for i in (func.eval(i) for i in interval.get_bounds()) if i is not None]
         i = 0
         if len(res_mixed) == 0:
             return None
